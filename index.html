@@ -2,14 +2,15 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>LOE COL v0.01</title>
+<title>LOE COL v0.02.0</title>
 
 <style>
 html, body {
   margin: 0;
   background: black;
   overflow: hidden;
-  touch-action: none;
+  color: white;
+  font-family: sans-serif;
 }
 
 #game {
@@ -21,33 +22,53 @@ html, body {
 }
 
 canvas {
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 3/2;
   width: 100%;
   max-height: 100%;
-  touch-action: none;
 }
 
-#version {
+.ui {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+}
+
+.topright {
   position: fixed;
   top: 10px;
   right: 10px;
-  color: white;
-  font-size: 12px;
-  opacity: 0.6;
+}
+
+.center {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+button {
+  padding: 10px 20px;
+  margin-top: 10px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="version">v0.01</div>
 <div id="game">
   <canvas id="canvas" width="960" height="640"></canvas>
 </div>
 
+<div class="ui" id="hud"></div>
+<div class="topright">v0.02.0</div>
+<div class="center" id="menu"></div>
+
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+
+let state = "menu";
+let autoAim = false;
 
 let player = {
   x: 480,
@@ -61,13 +82,15 @@ let player = {
 let bullets = [];
 let enemies = [];
 
+let wave = 1;
+
 let keys = {};
 let mouseDown = false;
 
 let leftTouch = null;
 let rightTouch = null;
 
-// ===== INPUT =====
+// INPUT
 document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
@@ -81,10 +104,9 @@ canvas.addEventListener("mousemove", e => {
   player.angle = Math.atan2(y - player.y, x - player.x);
 });
 
-// ===== TOUCH START =====
+// TOUCH
 canvas.addEventListener("touchstart", e => {
   const rect = canvas.getBoundingClientRect();
-
   for (let t of e.changedTouches) {
     const x = (t.clientX - rect.left) / rect.width * canvas.width;
     const y = (t.clientY - rect.top) / rect.height * canvas.height;
@@ -97,15 +119,12 @@ canvas.addEventListener("touchstart", e => {
   }
 }, { passive: false });
 
-// ===== TOUCH MOVE =====
 canvas.addEventListener("touchmove", e => {
   const rect = canvas.getBoundingClientRect();
-
   for (let t of e.changedTouches) {
     const x = (t.clientX - rect.left) / rect.width * canvas.width;
     const y = (t.clientY - rect.top) / rect.height * canvas.height;
 
-    // movement
     if (leftTouch && t.identifier === leftTouch.id) {
       const dx = x - leftTouch.startX;
       const dy = y - leftTouch.startY;
@@ -115,7 +134,6 @@ canvas.addEventListener("touchmove", e => {
       player.y += (dy / mag) * player.speed;
     }
 
-    // aim + shoot
     if (rightTouch && t.identifier === rightTouch.id) {
       player.angle = Math.atan2(y - player.y, x - player.x);
       shoot();
@@ -123,7 +141,6 @@ canvas.addEventListener("touchmove", e => {
   }
 }, { passive: false });
 
-// ===== TOUCH END =====
 canvas.addEventListener("touchend", e => {
   for (let t of e.changedTouches) {
     if (leftTouch && t.identifier === leftTouch.id) leftTouch = null;
@@ -131,57 +148,88 @@ canvas.addEventListener("touchend", e => {
   }
 });
 
-// ===== SHOOT =====
+// SHOOT
 function shoot() {
   if (player.cooldown > 0) return;
+
+  let targetAngle = player.angle;
+
+  if (autoAim && enemies.length > 0) {
+    let closest = enemies.reduce((a,b) =>
+      dist(player, a) < dist(player, b) ? a : b
+    );
+    targetAngle = Math.atan2(closest.y - player.y, closest.x - player.x);
+  }
 
   bullets.push({
     x: player.x,
     y: player.y,
-    vx: Math.cos(player.angle) * 7,
-    vy: Math.sin(player.angle) * 7
+    vx: Math.cos(targetAngle) * 8,
+    vy: Math.sin(targetAngle) * 8
   });
 
   player.cooldown = 10;
 }
 
-// ===== ENEMY SPAWN =====
-function spawnEnemy() {
-  enemies.push({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    hp: 3
+// SPAWN WAVE
+function spawnWave() {
+  enemies = [];
+  for (let i = 0; i < wave + 2; i++) {
+    enemies.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      hp: 3
+    });
+  }
+}
+
+// COLLISION FIX (push apart)
+function separateEntities() {
+  enemies.forEach(e => {
+    const dx = e.x - player.x;
+    const dy = e.y - player.y;
+    const d = Math.hypot(dx, dy);
+
+    if (d < 25) {
+      const push = (25 - d) / 2;
+      const nx = dx / (d || 1);
+      const ny = dy / (d || 1);
+
+      e.x += nx * push;
+      player.x -= nx * push;
+      e.y += ny * push;
+      player.y -= ny * push;
+    }
   });
 }
 
-for (let i = 0; i < 5; i++) spawnEnemy();
+function dist(a,b){
+  return Math.hypot(a.x-b.x,a.y-b.y);
+}
 
-// ===== UPDATE =====
+// UPDATE
 function update() {
-  let dx = 0, dy = 0;
+  if (state !== "game") return;
 
+  let dx = 0, dy = 0;
   if (keys["w"]) dy--;
   if (keys["s"]) dy++;
   if (keys["a"]) dx--;
   if (keys["d"]) dx++;
 
   const mag = Math.hypot(dx, dy) || 1;
-
   player.x += (dx / mag) * player.speed;
   player.y += (dy / mag) * player.speed;
 
   if (mouseDown) shoot();
-
   if (player.cooldown > 0) player.cooldown--;
 
-  // bullets
   bullets = bullets.map(b => ({
     ...b,
     x: b.x + b.vx,
     y: b.y + b.vy
   }));
 
-  // enemies move
   enemies.forEach(e => {
     const dx = player.x - e.x;
     const dy = player.y - e.y;
@@ -190,15 +238,14 @@ function update() {
     e.x += (dx / d) * 1.5;
     e.y += (dy / d) * 1.5;
 
-    // damage player
-    if (d < 20) player.hp -= 0.2;
+    if (d < 20) player.hp -= 0.3;
   });
 
-  // collisions
+  separateEntities();
+
   bullets.forEach(b => {
     enemies.forEach(e => {
-      const d = Math.hypot(b.x - e.x, b.y - e.y);
-      if (d < 15) {
+      if (dist(b,e) < 15) {
         e.hp--;
         b.hit = true;
       }
@@ -208,31 +255,33 @@ function update() {
   bullets = bullets.filter(b => !b.hit);
   enemies = enemies.filter(e => e.hp > 0);
 
-  if (enemies.length < 5) spawnEnemy();
+  if (enemies.length === 0) {
+    wave++;
+    spawnWave();
+  }
 }
 
-// ===== DRAW =====
+// DRAW
 function draw() {
   ctx.fillStyle = "#05070d";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // player
+  if (state === "menu") return;
+
   ctx.fillStyle = "#22c55e";
   ctx.beginPath();
   ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
   ctx.fill();
 
-  // aim line
   ctx.strokeStyle = "white";
   ctx.beginPath();
   ctx.moveTo(player.x, player.y);
   ctx.lineTo(
-    player.x + Math.cos(player.angle) * 30,
-    player.y + Math.sin(player.angle) * 30
+    player.x + Math.cos(player.angle) * 40,
+    player.y + Math.sin(player.angle) * 40
   );
   ctx.stroke();
 
-  // bullets
   ctx.fillStyle = "#3b82f6";
   bullets.forEach(b => {
     ctx.beginPath();
@@ -240,7 +289,6 @@ function draw() {
     ctx.fill();
   });
 
-  // enemies
   ctx.fillStyle = "#ef4444";
   enemies.forEach(e => {
     ctx.beginPath();
@@ -248,18 +296,40 @@ function draw() {
     ctx.fill();
   });
 
-  // UI
-  ctx.fillStyle = "white";
-  ctx.fillText("HP: " + Math.floor(player.hp), 10, 20);
+  document.getElementById("hud").innerHTML =
+    "HP: " + Math.floor(player.hp) + "<br>Wave: " + wave;
 }
 
-// ===== LOOP =====
+// MENU
+function showMenu() {
+  document.getElementById("menu").innerHTML = `
+    <h1>Champions of Light</h1>
+    <button onclick="startGame()">Start</button><br>
+    <button onclick="toggleAutoAim()">Auto Aim: ${autoAim ? "ON" : "OFF"}</button>
+  `;
+}
+
+function startGame() {
+  state = "game";
+  document.getElementById("menu").innerHTML = "";
+  wave = 1;
+  player.hp = 100;
+  spawnWave();
+}
+
+function toggleAutoAim() {
+  autoAim = !autoAim;
+  showMenu();
+}
+
+showMenu();
+
+// LOOP
 function loop() {
   update();
   draw();
   requestAnimationFrame(loop);
 }
-
 loop();
 </script>
 
