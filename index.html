@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>LOE COL v0.02.1</title>
+<title>LOE COL v0.02.2</title>
 
 <style>
 html, body {
@@ -60,7 +60,7 @@ button {
 </div>
 
 <div class="ui" id="hud"></div>
-<div class="topright">v0.02.1</div>
+<div class="topright">v0.02.2</div>
 <div class="center" id="menu"></div>
 
 <script>
@@ -85,6 +85,8 @@ let player = {
 
 let bullets = [];
 let enemies = [];
+
+let door = { x: 900, y: 260, w: 40, h: 120 };
 
 let keys = {};
 let mouseDown = false;
@@ -185,6 +187,16 @@ function dist(a,b){
   return Math.hypot(a.x-b.x,a.y-b.y);
 }
 
+// CHECK DOOR COLLISION
+function playerInDoor() {
+  return (
+    player.x > door.x &&
+    player.x < door.x + door.w &&
+    player.y > door.y &&
+    player.y < door.y + door.h
+  );
+}
+
 // UPDATE
 function update() {
   if (state !== "game") return;
@@ -237,8 +249,8 @@ function update() {
   bullets = bullets.filter(b => !b.hit);
   enemies = enemies.filter(e => e.hp > 0);
 
-  // DOOR CHECK
-  if (enemies.length === 0 && player.x > 880) {
+  // NEW: DOOR LOGIC
+  if (enemies.length === 0 && playerInDoor()) {
     transitioning = true;
     transitionTimer = 60;
   }
@@ -251,21 +263,18 @@ function draw() {
 
   if (state === "menu") return;
 
-  // DOOR
-  ctx.fillStyle = "yellow";
-  ctx.fillRect(900, 260, 40, 120);
+  // DOOR ACTIVE / INACTIVE
+  ctx.fillStyle = enemies.length === 0 ? "yellow" : "gray";
+  ctx.fillRect(door.x, door.y, door.w, door.h);
 
-  // ARROW
   ctx.fillStyle = "white";
-  ctx.fillText("→", 880, 320);
+  ctx.fillText("→", door.x - 20, 320);
 
-  // PLAYER
   ctx.fillStyle = "#22c55e";
   ctx.beginPath();
   ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
   ctx.fill();
 
-  // BULLETS
   ctx.fillStyle = "#3b82f6";
   bullets.forEach(b => {
     ctx.beginPath();
@@ -273,7 +282,6 @@ function draw() {
     ctx.fill();
   });
 
-  // ENEMIES
   ctx.fillStyle = "#ef4444";
   enemies.forEach(e => {
     ctx.beginPath();
@@ -281,11 +289,9 @@ function draw() {
     ctx.fill();
   });
 
-  // HUD
   document.getElementById("hud").innerHTML =
     "HP: " + Math.floor(player.hp) + "<br>Phase: " + phase;
 
-  // TRANSITION TEXT
   if (transitioning) {
     ctx.fillStyle = "white";
     ctx.font = "30px sans-serif";
