@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>LOE COL v0.01</title>
+
+<style>
+html, body {
+  margin: 0;
+  background: black;
+  overflow: hidden;
+  touch-action: none;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+canvas {
+  aspect-ratio: 3 / 2;
+  width: 100%;
+  max-height: 100%;
+  touch-action: none;
+}
+
+#version {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  color: white;
+  font-size: 12px;
+  opacity: 0.6;
+}
+</style>
+</head>
+
+<body>
+
+<div id="version">v0.01</div>
+<div id="game">
+  <canvas id="canvas" width="960" height="640"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let player = {
+  x: 480,
+  y: 320,
+  speed: 3,
+  angle: 0,
+  cooldown: 0,
+  hp: 100
+};
+
+let bullets = [];
+let enemies = [];
+
+let keys = {};
+let mouseDown = false;
+
+let leftTouch = null;
+let rightTouch = null;
+
+// ===== INPUT =====
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+canvas.addEventListener("mousedown", () => mouseDown = true);
+window.addEventListener("mouseup", () => mouseDown = false);
+
+canvas.addEventListener("mousemove", e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width * canvas.width;
+  const y = (e.clientY - rect.top) / rect.height * canvas.height;
+  player.angle = Math.atan2(y - player.y, x - player.x);
+});
+
+// ===== TOUCH START =====
+canvas.addEventListener("touchstart", e => {
+  const rect = canvas.getBoundingClientRect();
+
+  for (let t of e.changedTouches) {
+    const x = (t.clientX - rect.left) / rect.width * canvas.width;
+    const y = (t.clientY - rect.top) / rect.height * canvas.height;
+
+    if (x < canvas.width / 2 && !leftTouch) {
+      leftTouch = { id: t.identifier, startX: x, startY: y };
+    } else if (!rightTouch) {
+      rightTouch = { id: t.identifier };
+    }
+  }
+}, { passive: false });
+
+// ===== TOUCH MOVE =====
+canvas.addEventListener("touchmove", e => {
+  const rect = canvas.getBoundingClientRect();
+
+  for (let t of e.changedTouches) {
+    const x = (t.clientX - rect.left) / rect.width * canvas.width;
+    const y = (t.clientY - rect.top) / rect.height * canvas.height;
+
+    // movement
+    if (leftTouch && t.identifier === leftTouch.id) {
+      const dx = x - leftTouch.startX;
+      const dy = y - leftTouch.startY;
+      const mag = Math.hypot(dx, dy) || 1;
+
+      player.x += (dx / mag) * player.speed;
+      player.y += (dy / mag) * player.speed;
+    }
+
+    // aim + shoot
+    if (rightTouch && t.identifier === rightTouch.id) {
+      player.angle = Math.atan2(y - player.y, x - player.x);
+      shoot();
+    }
+  }
+}, { passive: false });
+
+// ===== TOUCH END =====
+canvas.addEventListener("touchend", e => {
+  for (let t of e.changedTouches) {
+    if (leftTouch && t.identifier === leftTouch.id) leftTouch = null;
+    if (rightTouch && t.identifier === rightTouch.id) rightTouch = null;
+  }
+});
+
+// ===== SHOOT =====
+function shoot() {
+  if (player.cooldown > 0) return;
+
+  bullets.push({
+    x: player.x,
+    y: player.y,
+    vx: Math.cos(player.angle) * 7,
+    vy: Math.sin(player.angle) * 7
+  });
+
+  player.cooldown = 10;
+}
+
+// ===== ENEMY SPAWN =====
+function spawnEnemy() {
+  enemies.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    hp: 3
+  });
+}
+
+for (let i = 0; i < 5; i++) spawnEnemy();
+
+// ===== UPDATE =====
+function update() {
+  let dx = 0, dy = 0;
+
+  if (keys["w"]) dy--;
+  if (keys["s"]) dy++;
+  if (keys["a"]) dx--;
+  if (keys["d"]) dx++;
+
+  const mag = Math.hypot(dx, dy) || 1;
+
+  player.x += (dx / mag) * player.speed;
+  player.y += (dy / mag) * player.speed;
+
+  if (mouseDown) shoot();
+
+  if (player.cooldown > 0) player.cooldown--;
+
+  // bullets
+  bullets = bullets.map(b => ({
+    ...b,
+    x: b.x + b.vx,
+    y: b.y + b.vy
+  }));
+
+  // enemies move
+  enemies.forEach(e => {
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+
+    e.x += (dx / d) * 1.5;
+    e.y += (dy / d) * 1.5;
+
+    // damage player
+    if (d < 20) player.hp -= 0.2;
+  });
+
+  // collisions
+  bullets.forEach(b => {
+    enemies.forEach(e => {
+      const d = Math.hypot(b.x - e.x, b.y - e.y);
+      if (d < 15) {
+        e.hp--;
+        b.hit = true;
+      }
+    });
+  });
+
+  bullets = bullets.filter(b => !b.hit);
+  enemies = enemies.filter(e => e.hp > 0);
+
+  if (enemies.length < 5) spawnEnemy();
+}
+
+// ===== DRAW =====
+function draw() {
+  ctx.fillStyle = "#05070d";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // player
+  ctx.fillStyle = "#22c55e";
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
+  ctx.fill();
+
+  // aim line
+  ctx.strokeStyle = "white";
+  ctx.beginPath();
+  ctx.moveTo(player.x, player.y);
+  ctx.lineTo(
+    player.x + Math.cos(player.angle) * 30,
+    player.y + Math.sin(player.angle) * 30
+  );
+  ctx.stroke();
+
+  // bullets
+  ctx.fillStyle = "#3b82f6";
+  bullets.forEach(b => {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // enemies
+  ctx.fillStyle = "#ef4444";
+  enemies.forEach(e => {
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, 12, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // UI
+  ctx.fillStyle = "white";
+  ctx.fillText("HP: " + Math.floor(player.hp), 10, 20);
+}
+
+// ===== LOOP =====
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
