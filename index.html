@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>LOE COL v0.02.0</title>
+<title>LOE COL v0.02.1</title>
 
 <style>
 html, body {
@@ -60,7 +60,7 @@ button {
 </div>
 
 <div class="ui" id="hud"></div>
-<div class="topright">v0.02.0</div>
+<div class="topright">v0.02.1</div>
 <div class="center" id="menu"></div>
 
 <script>
@@ -70,8 +70,12 @@ const ctx = canvas.getContext("2d");
 let state = "menu";
 let autoAim = false;
 
+let phase = 1;
+let transitioning = false;
+let transitionTimer = 0;
+
 let player = {
-  x: 480,
+  x: 100,
   y: 320,
   speed: 3,
   angle: 0,
@@ -81,8 +85,6 @@ let player = {
 
 let bullets = [];
 let enemies = [];
-
-let wave = 1;
 
 let keys = {};
 let mouseDown = false;
@@ -109,10 +111,9 @@ canvas.addEventListener("touchstart", e => {
   const rect = canvas.getBoundingClientRect();
   for (let t of e.changedTouches) {
     const x = (t.clientX - rect.left) / rect.width * canvas.width;
-    const y = (t.clientY - rect.top) / rect.height * canvas.height;
 
     if (x < canvas.width / 2 && !leftTouch) {
-      leftTouch = { id: t.identifier, startX: x, startY: y };
+      leftTouch = { id: t.identifier, startX: x };
     } else if (!rightTouch) {
       rightTouch = { id: t.identifier };
     }
@@ -126,12 +127,8 @@ canvas.addEventListener("touchmove", e => {
     const y = (t.clientY - rect.top) / rect.height * canvas.height;
 
     if (leftTouch && t.identifier === leftTouch.id) {
-      const dx = x - leftTouch.startX;
-      const dy = y - leftTouch.startY;
-      const mag = Math.hypot(dx, dy) || 1;
-
-      player.x += (dx / mag) * player.speed;
-      player.y += (dy / mag) * player.speed;
+      let dx = x - leftTouch.startX;
+      player.x += Math.sign(dx) * player.speed;
     }
 
     if (rightTouch && t.identifier === rightTouch.id) {
@@ -171,38 +168,19 @@ function shoot() {
   player.cooldown = 10;
 }
 
-// SPAWN WAVE
-function spawnWave() {
+// SPAWN
+function spawnPhase() {
   enemies = [];
-  for (let i = 0; i < wave + 2; i++) {
+  for (let i = 0; i < phase + 2; i++) {
     enemies.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
+      x: 300 + Math.random() * 500,
+      y: 100 + Math.random() * 400,
       hp: 3
     });
   }
 }
 
-// COLLISION FIX (push apart)
-function separateEntities() {
-  enemies.forEach(e => {
-    const dx = e.x - player.x;
-    const dy = e.y - player.y;
-    const d = Math.hypot(dx, dy);
-
-    if (d < 25) {
-      const push = (25 - d) / 2;
-      const nx = dx / (d || 1);
-      const ny = dy / (d || 1);
-
-      e.x += nx * push;
-      player.x -= nx * push;
-      e.y += ny * push;
-      player.y -= ny * push;
-    }
-  });
-}
-
+// UTILS
 function dist(a,b){
   return Math.hypot(a.x-b.x,a.y-b.y);
 }
@@ -211,15 +189,21 @@ function dist(a,b){
 function update() {
   if (state !== "game") return;
 
-  let dx = 0, dy = 0;
-  if (keys["w"]) dy--;
-  if (keys["s"]) dy++;
-  if (keys["a"]) dx--;
-  if (keys["d"]) dx++;
+  if (transitioning) {
+    transitionTimer--;
+    if (transitionTimer <= 0) {
+      transitioning = false;
+      phase++;
+      player.x = 100;
+      spawnPhase();
+    }
+    return;
+  }
 
-  const mag = Math.hypot(dx, dy) || 1;
-  player.x += (dx / mag) * player.speed;
-  player.y += (dy / mag) * player.speed;
+  if (keys["a"]) player.x -= player.speed;
+  if (keys["d"]) player.x += player.speed;
+  if (keys["w"]) player.y -= player.speed;
+  if (keys["s"]) player.y += player.speed;
 
   if (mouseDown) shoot();
   if (player.cooldown > 0) player.cooldown--;
@@ -231,17 +215,15 @@ function update() {
   }));
 
   enemies.forEach(e => {
-    const dx = player.x - e.x;
-    const dy = player.y - e.y;
-    const d = Math.hypot(dx, dy) || 1;
+    let dx = player.x - e.x;
+    let dy = player.y - e.y;
+    let d = Math.hypot(dx, dy) || 1;
 
-    e.x += (dx / d) * 1.5;
-    e.y += (dy / d) * 1.5;
+    e.x += (dx / d) * 1.2;
+    e.y += (dy / d) * 1.2;
 
-    if (d < 20) player.hp -= 0.3;
+    if (d < 20) player.hp -= 0.2;
   });
-
-  separateEntities();
 
   bullets.forEach(b => {
     enemies.forEach(e => {
@@ -255,9 +237,10 @@ function update() {
   bullets = bullets.filter(b => !b.hit);
   enemies = enemies.filter(e => e.hp > 0);
 
-  if (enemies.length === 0) {
-    wave++;
-    spawnWave();
+  // DOOR CHECK
+  if (enemies.length === 0 && player.x > 880) {
+    transitioning = true;
+    transitionTimer = 60;
   }
 }
 
@@ -268,20 +251,21 @@ function draw() {
 
   if (state === "menu") return;
 
+  // DOOR
+  ctx.fillStyle = "yellow";
+  ctx.fillRect(900, 260, 40, 120);
+
+  // ARROW
+  ctx.fillStyle = "white";
+  ctx.fillText("→", 880, 320);
+
+  // PLAYER
   ctx.fillStyle = "#22c55e";
   ctx.beginPath();
   ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = "white";
-  ctx.beginPath();
-  ctx.moveTo(player.x, player.y);
-  ctx.lineTo(
-    player.x + Math.cos(player.angle) * 40,
-    player.y + Math.sin(player.angle) * 40
-  );
-  ctx.stroke();
-
+  // BULLETS
   ctx.fillStyle = "#3b82f6";
   bullets.forEach(b => {
     ctx.beginPath();
@@ -289,6 +273,7 @@ function draw() {
     ctx.fill();
   });
 
+  // ENEMIES
   ctx.fillStyle = "#ef4444";
   enemies.forEach(e => {
     ctx.beginPath();
@@ -296,8 +281,16 @@ function draw() {
     ctx.fill();
   });
 
+  // HUD
   document.getElementById("hud").innerHTML =
-    "HP: " + Math.floor(player.hp) + "<br>Wave: " + wave;
+    "HP: " + Math.floor(player.hp) + "<br>Phase: " + phase;
+
+  // TRANSITION TEXT
+  if (transitioning) {
+    ctx.fillStyle = "white";
+    ctx.font = "30px sans-serif";
+    ctx.fillText("Entering next phase...", 300, 300);
+  }
 }
 
 // MENU
@@ -312,9 +305,10 @@ function showMenu() {
 function startGame() {
   state = "game";
   document.getElementById("menu").innerHTML = "";
-  wave = 1;
+  phase = 1;
   player.hp = 100;
-  spawnWave();
+  player.x = 100;
+  spawnPhase();
 }
 
 function toggleAutoAim() {
