@@ -1,0 +1,50 @@
+on:'⊙',desc:'Crews additional mounted weapons after the first.',specialties:['Kinetic','Energy','Ordnance']},
+    {id:'engineer',name:'Engineer',icon:'⚙',desc:'Operates technical systems, drones, shields, reactor and damage control.',specialties:['Drone Systems','Shield Systems','Reactor Systems','Damage Control','Electronic Warfare']},
+    {id:'tactical',name:'Tactical Officer',icon:'◆',desc:'Improves combat coordination and target priority.',specialties:['Targeting','Defense','Ordnance']},
+    {id:'command',name:'Command Officer',icon:'◇',desc:'Improves logistics and larger-crew coordination.',specialties:['Logistics','Crew','Fleet']}
+  ];
+  R.role=id=>R.CREW_ROLES.find(r=>r.id===id)||R.CREW_ROLES[2];
+  const N1=['Aria','Kade','Mira','Talon','Rhea','Jax','Nova','Soren','Lyra','Cato','Vera','Orin','Ember','Mara','Dax','Iris'],N2=['Vale','Rook','Sol','Voss','Rey','Dane','Kael','Morrow','Ash','Vane'];
+  R.makeCrew=(roleId,specialty)=>{const role=R.role(roleId||pick(R.CREW_ROLES).id);return {id:uid('crew'),name:pick(N1)+' '+pick(N2),role:role.id,specialty:specialty||pick(role.specialties),level:1,xp:0,skill:+(0.9+Math.random()*.22).toFixed(2),assigned:false}};
+  R.candidates=s=>{const needEngineer=!s.crew.some(c=>c.role==='engineer'),roles=R.CREW_ROLES.map(r=>r.id),out=[];if(needEngineer)out.push(R.makeCrew('engineer','Drone Systems'));while(out.length<3){let r=pick(roles);if(out.some(c=>c.role===r)&&Math.random()<.7)continue;out.push(R.makeCrew(r))}return out};
+
+  R.FACTIONS=[['Swarm','#ff596d','swarm'],['Bastion','#d8b367','fortress'],['Vector','#59d8ff','beam'],['Marauders','#ff8859','missile'],['Null','#9584ff','ion'],['Forge','#d78c56','repair']].map((x,i)=>({id:i,name:x[0],color:x[1],signature:x[2]}));
+  R.ROLES=['Scout','Fighter','Interceptor','Bomber','Missile Boat','Support','Gunship','Carrier'];
+  R.ENEMIES=[];R.FACTIONS.forEach(f=>R.ROLES.forEach((n,i)=>R.ENEMIES.push({id:`e.${f.id}.${i}`,faction:f.id,role:i,name:`${f.name} ${n}`,hp:.7+i*.32+(f.id===1?.25:0),speed:1.45-i*.11+(f.id===0?.35:0),damage:.7+i*.16,color:f.color,shield:f.id===2?.55:f.id===4?.2:0})));
+  const archetypes=[['Dreadnought','broadside','Heavy salvos, sweeping lanes, and armored weapon batteries.'],['Carrier Prime','carrier','Fighter launches, pressure waves, and targetable hangar systems.'],['Reaper','reaper','Fast lances, charges, and dangerous pursuit patterns.']];
+  R.BOSSES=[];R.FACTIONS.forEach(f=>archetypes.forEach((a,i)=>R.BOSSES.push({id:`b.${f.id}.${i}`,faction:f.id,name:`${f.name} ${a[0]}`,hp:18+i*7,damage:2.3+i*.45,color:f.color,role:i,pattern:a[1],signature:f.signature,desc:a[2]})));
+
+  R.SYSTEMS={
+    shield:{name:'Shield Generator',icon:'⬡',max:6,cost:l=>500+520*l,desc:'Permanent shield hardware. Capacity belongs here, not primarily in run cards.',stat:l=>`${Math.round((1+l*.12)*100)}% shield capacity`},
+    armor:{name:'Armor Plating',icon:'▰',max:6,cost:l=>460+500*l,desc:'Permanent structural plating that reduces hull damage.',stat:l=>`${Math.round(l*.035*100)}% hull damage reduction`},
+    reactor:{name:'Reactor',icon:'⚡',max:6,cost:l=>560+560*l,desc:'Permanent power system that shortens Tactical System cooldowns.',stat:l=>`${Math.round(l*3)}% Tactical cooldown bonus`},
+    engines:{name:'Engines',icon:'»',max:6,cost:l=>440+480*l,desc:'Permanent propulsion upgrades that improve boss-fight maneuvering.',stat:l=>`${Math.round((1+l*.07)*100)}% boss handling`},
+    droneBay:{name:'Drone Bay',icon:'◇',max:6,cost:l=>700+700*l,desc:'Physical drone capacity. Requires an active Engineer to operate.',stat:l=>`${l} drone slot${l===1?'':'s'}`},
+    hangar:{name:'Hangar',icon:'▷',max:4,cost:l=>1900+1900*l,desc:'Physical support-ship capacity. Support craft also require extra active Pilots.',stat:l=>`${l} support slot${l===1?'':'s'}`}
+  };
+
+  R.RD_TRACKS={
+    weapons:{name:'Weapons Lab',icon:'⊙',max:5,desc:'Unlocks new weapon technologies. It does not directly increase damage.',cost:l=>700+850*l,unlocks:['Railgun','Beam Lance, Plasma Mortar & Flak Battery','Ion Arc','Missile Rack','Torpedo Tube']},
+    drones:{name:'Drone Lab',icon:'◇',max:3,desc:'Unlocks new offensive and defensive drone chassis.',cost:l=>850+1000*l,unlocks:['Striker & Guardian drones','Ion & Repair drones','Bomber & Shield drones']},
+    tactical:{name:'Tactical Lab',icon:'⚡',max:5,desc:'Unlocks new triggered Tactical Systems for combat.',cost:l=>800+950*l,unlocks:['Gravity Well & Reactor Vent','Missile Barrage & EMP','Drone Overdrive & Escort Assault','Emergency Repair & Target Lock','Broadside, Overcharge, Singularity & Artillery']},
+    fleet:{name:'Flight Development',icon:'▷',max:3,desc:'Unlocks support craft for larger hulls and hangars.',cost:l=>1800+2200*l,unlocks:['Interceptor & Heavy Fighter','Bomber & EW Craft','Rescue Cutter & Escort Gunship']}
+  };
+
+  R.CARDS=[];const add=o=>R.CARDS.push(o),rarity=t=>['common','rare','epic'][t]||'common';
+  const stats=[
+    ['Damage','✦','damage',[.12,.20,.32],v=>`All mounted weapons deal ${Math.round(v*100)}% more damage.`],
+    ['Fire Rate','»','rate',[.12,.20,.30],v=>`All mounted weapons cycle ${Math.round(v*100)}% faster.`],
+    ['Critical','◆','crit',[.05,.08,.12],v=>`Critical hit chance increases by ${Math.round(v*100)}%.`],
+    ['Hull','♥','hull',[.12,.20,.30],v=>`Maximum hull strength increases by ${Math.round(v*100)}% for this run.`],
+    ['Repair','✚','regen',[.25,.45,.75],v=>`The flagship repairs ${v.toFixed(2)} hull per second.`],
+    ['Cooldown','◔','cool',[.08,.13,.20],v=>`Tactical Systems recharge ${Math.round(v*100)}% faster.`],
+    ['Extra Shot','•','shots',[1,1,2],v=>`Mounted guns fire ${v} additional projectile${v>1?'s':''} each cycle.`],
+    ['Blast Radius','✹','aoe',[.16,.28,.45],v=>`Explosive effects grow ${Math.round(v*100)}% larger.`],
+    ['Piercing','→','pierce',[1,2,3],v=>`Projectiles can pass through ${v} additional target${v>1?'s':''}.`],
+    ['Salvage','◇','salvage',[.20,.35,.55],v=>`Recovered salvage is worth ${Math.round(v*100)}% more.`],
+    ['Experience','△','xp',[.14,.24,.38],v=>`Combat experience is gained ${Math.round(v*100)}% faster.`]
+  ];
+  for(let tier=0;tier<3;tier++)for(const s of stats){const v=s[3][tier];add({id:`g.${s[2]}.${tier}`,group:'general',name:s[0]+(tier?` ${tier+1}`:''),icon:s[1],rarity:rarity(tier),desc:s[4](v),effect:{k:s[2],v}})}
+  add({id:'shield.capacity',group:'defense',name:'Expanded Capacitors',icon:'⬡',rarity:'rare',desc:'Maximum shield capacity increases by 12% for this run.',effect:{k:'shield',v:.12}});
+  [['Field Cycling','common',.28,'Shields recharge 28% faster after the recharge delay.'],['Rapid Cycling','rare',.48,'Shields recharge 48% faster after the recharge delay.'],['Hyper Cycling','epic',.80,'Shields recharge 80% faster after the recharge delay.']].forEach((x,i)=>add({id:'shield.regen.'+i,group:'defense',name:x[0],icon:'◔',rarity:x[1],desc:x[3],effect:{k:'shieldRegen',v:x[2]}}));
+  [['Quick Restart','common',.18,'Shield recharge begins 18% sooner after taking damage.'],['Hot Restart','rare',.32
