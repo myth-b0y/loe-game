@@ -1,0 +1,55 @@
+his.en||[]).filter(e=>!e.dead);let best=null,bd=max;for(const e of hs){const d=Math.hypot(e.x-u.x,e.y-u.y);if(d<bd){bd=d;best=e}}return best};
+GP._offenseDrone=function(u,dt){
+  const d=u.def,z=R.FORMATION_ZONES.drone[u.zone]||[0,-70],spread=1+Math.min(.18,(this.s.hull||0)*.025),hx=this.cx+z[0]*spread,hy=this.cy+z[1]*spread;u.cd-=dt;u.stateTime=(u.stateTime||0)+dt;
+  if(u.state==='hold'){this._moveFleetUnit(u,hx,hy,dt,5.2);if(!u.target||!this.validTarget(u.target))u.target=this._fleetTarget(u,520);if(u.target&&Math.hypot(u.x-hx,u.y-hy)<24){u.state='attack';u.stateTime=0}}
+  else if(u.state==='attack'){
+    if(!u.target||!this.validTarget(u.target)){u.target=null;u.state='return';u.stateTime=0;return}
+    const t=u.target,range=d.id==='drone.bomber'?145:d.id==='drone.ion'?190:165,dx=t.x-u.x,dy=t.y-u.y,dist=Math.hypot(dx,dy)||1;
+    if(dist>range)this._moveFleetUnit(u,t.x-dx/dist*range*.75,t.y-dy/dist*range*.75,dt,d.id==='drone.bomber'?2.7:3.8);
+    if(u.cd<=0&&dist<range*1.45){this.fireAlly(t,u.x,u.y,(d.damage||10)*this.mods.droneDmg,d.aoe,d.ion,'drone');u.cd=1/((d.rate||1)*this.mods.droneRate*(this.droneBuff?1.8:1));}
+    if(u.stateTime>(d.id==='drone.bomber'?2.2:3.2)){u.state='return';u.stateTime=0;u.target=null;}
+  }else{this._moveFleetUnit(u,hx,hy,dt,5.6);if(Math.hypot(u.x-hx,u.y-hy)<12){u.state='hold';u.stateTime=0}}
+};
+GP._defenseDrone=function(u,dt,defCount){
+  const d=u.def,n=Math.max(1,defCount),a=(this.t*.72)+(u.track/n)*Math.PI*2,rx=58+(this.s.hull||0)*1.5,ry=72+(this.s.hull||0)*1.8,tx=this.cx+Math.cos(a)*rx,ty=this.cy+Math.sin(a)*ry;this._moveFleetUnit(u,tx,ty,dt,7);u.cd-=dt;
+  if(d.pd){const p=(this.bad||[]).find(p=>Math.hypot(p.x-u.x,p.y-u.y)<76);if(p&&Math.random()<d.pd*12*dt){p.life=0;R.audio.play('drone')}}
+  if(d.repair)this.hp=Math.min(this.maxHp,this.hp+d.repair*dt);
+  if(d.shield)this.shield=Math.min(this.maxShield,this.shield+this.maxShield*d.shield*dt);
+};
+GP._supportCraft=function(u,dt){
+  const d=u.def,z=R.FORMATION_ZONES.support[u.zone]||[0,95],spread=1+Math.min(.22,(this.s.hull||0)*.03),hx=this.cx+z[0]*spread,hy=this.cy+z[1]*spread;u.cd-=dt;u.stateTime=(u.stateTime||0)+dt;
+  if(d.repair){this._moveFleetUnit(u,hx,hy,dt,3.2);this.hp=Math.min(this.maxHp,this.hp+d.repair*dt);return}
+  if(u.state==='hold'){this._moveFleetUnit(u,hx,hy,dt,3.5);if(!u.target||!this.validTarget(u.target))u.target=this._fleetTarget(u,700);if(u.target&&Math.hypot(u.x-hx,u.y-hy)<28){u.state='attack';u.stateTime=0}}
+  else if(u.state==='attack'){
+    if(!u.target||!this.validTarget(u.target)){u.target=null;u.state='return';u.stateTime=0;return}const t=u.target,range=d.id==='support.bomber'?210:250,dx=t.x-u.x,dy=t.y-u.y,dist=Math.hypot(dx,dy)||1;
+    if(dist>range)this._moveFleetUnit(u,t.x-dx/dist*range*.85,t.y-dy/dist*range*.85,dt,2.5);
+    if(u.cd<=0&&dist<range*1.5){this.fireAlly(t,u.x,u.y,(d.damage||12)*this.mods.escortDmg,d.aoe,d.ion,'support');u.cd=1/((d.rate||1)*this.mods.escortRate*(this.escortBuff?1.8:1));}
+    if(u.stateTime>4.5){u.state='return';u.stateTime=0;u.target=null}
+  }else{this._moveFleetUnit(u,hx,hy,dt,3.8);if(Math.hypot(u.x-hx,u.y-hy)<16){u.state='hold';u.stateTime=0}}
+};
+GP.allies=function(dt){const defs=this.droneUnits.filter(u=>u.def.role==='defense');for(const u of this.droneUnits)u.def.role==='defense'?this._defenseDrone(u,dt,defs.length):this._offenseDrone(u,dt);for(const u of this.supportUnits)this._supportCraft(u,dt)};
+
+// ---------- SECTORS / PALETTES ----------
+GP.pickSector=function(idx){
+  if(this.sectorMap?.[idx])return this.sectorMap[idx];this.sectorMap=this.sectorMap||{};const prev=this.sectorMap[idx-1];let sector;
+  if(idx>=2&&Math.random()<.07)sector={kind:'void',id:'void',name:'VOID',color:'#111318',accent:pick(R.OUTLINE_COLORS),bonus:1.8};
+  else if(idx>=1&&Math.random()<.14)sector={kind:'pirate',id:'pirates',name:'PIRATES',color:'#747b80',accent:null,bonus:1.2};
+  else{const pool=R.SECTOR_FACTIONS.filter(f=>f.id!==prev?.id);sector={...pick(pool),kind:'base',bonus:1}}
+  this.sectorMap[idx]=sector;return sector;
+};
+GP._sectorType=function(sector){
+  const src={...pick(R.ENEMIES)},role=src.role??0;let type={...src,name:`${sector.name} ${R.ROLES?.[role]||'SHIP'}`,color:sector.color,accent:sector.accent};
+  if(sector.kind==='pirate'){type.pirate=true;type.name='Pirate '+(R.ROLES?.[role]||'Raider');type.color='#747b80';type.accent=pick(R.OUTLINE_COLORS)}
+  else if(sector.kind==='void'){type.void=true;type.name='Void '+['Wisp','Needle','Shade','Maw','Spire','Rift','Harbinger','Abyss'][role%8];type.color='#111318';type.accent=pick(R.OUTLINE_COLORS);type.hp*=1.5;type.damage*=1.3;type.speed*=1.07;type.shield=Math.max(type.shield||0,.28)}
+  else if(sector.id==='olydran'){type.hp*=1.2;type.speed*=.9;type.shield=Math.max(type.shield||0,.28)}
+  else if(sector.id==='elsari'){type.shield=Math.max(type.shield||0,.42);type.speed*=.96}
+  else if(sector.id==='rakkan'){type.damage*=1.18;type.hp*=1.08}
+  else if(sector.id==='svarin'){type.speed*=1.22;type.hp*=.92}
+  else if(sector.id==='ashari'){type.damage*=1.28;type.speed*=1.06}
+  else if(sector.id==='nevari'){type.hp*=1.1;type.shield=Math.max(type.shield||0,.12)}
+  else if(sector.id==='aaruian'){type.shield=Math.max(type.shield||0,.34);type.damage*=1.05}
+  return type;
+};
+GP.spawnWave=function(){
+  this.wave++;this.active=true;const idx=this.sectorIndex(),sector=this.pickSector(idx);this.currentSector=sector;const we=$('#wave');if(we)we.textContent=`◈ ${this.wave} · ${sector.name}`;
+  if(this.wave%10===0){this.startSectorBoss()
