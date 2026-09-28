@@ -1,0 +1,42 @@
+;return}
+  const budget=(6+this.wave*1.85)*(sector.kind==='void'?1.3:1),cap=Math.min(38,10+(this.wave/2|0));let left=budget;
+  while(left>0&&this.en.length<cap){const type=this._sectorType(sector),cost=1+(type.role||0)*.55;left-=cost;this.spawn(type)}
+};
+
+// ---------- BOSS STATE: explicit and non-blocking ----------
+GP.startBossIntro=function(){return this.startSectorBoss()};
+GP.startSectorBoss=function(){
+  this.paused=false;this.active=true;this.count=0;this.bad=[];this.tele=[];this.priority=null;$('#cards')?.classList.remove('show');
+  this.autoMode=false;const auto=$('#autoRun');if(auto){auto.classList.remove('on');auto.textContent='AUTO'};
+  const idx=this.sectorIndex(),sector=this.currentSector||this.pickSector(idx),expected=Math.min(9,3+idx);let pattern='broadside',title='DREADNOUGHT';
+  if(sector.style==='tech'){pattern='carrier';title='CARRIER PRIME'}else if(['mobile','aggressive','volatile'].includes(sector.style)){pattern='reaper';title='REAPER'}else if(sector.id==='aaruian'){pattern='carrier';title='WAR PYRAMID'}
+  if(sector.kind==='pirate'){pattern=['carrier','broadside','reaper'][idx%3];title='WARLORD'}if(sector.kind==='void'){pattern=['reaper','carrier','broadside'][idx%3];title='LEVIATHAN'}
+  const accent=sector.kind==='pirate'||sector.kind==='void'?pick(R.OUTLINE_COLORS):sector.accent,type={id:`boss.${sector.id}.${idx}`,faction:0,name:`${sector.name} ${title}`,hp:(sector.kind==='void'?34:28)+idx*6,damage:(sector.kind==='void'?3.2:2.65)+idx*.24,color:sector.kind==='void'?'#111318':sector.kind==='pirate'?'#747b80':sector.color,accent,role:idx%3,pattern,desc:sector.kind==='void'?'A hostile Void war-form. This sector is stronger and pays better.':sector.kind==='pirate'?'A mixed pirate command ship carrying scavenged technology.':sector.desc,classIndex:sector.kind==='void'?Math.min(9,expected+1):expected,void:sector.kind==='void',pirate:sector.kind==='pirate'};
+  this.boss=this.makeBoss(type);this.boss.type={...this.boss.type,...type};this.boss.type.classIndex=type.classIndex;const mult=1.9+idx*.25;this.boss.hp*=mult;this.boss.max*=mult;this.boss.shield*=1.45+idx*.08;this.boss.maxShield=this.boss.shield;for(const s of this.boss.subsystems||[]){s.hp*=1.65+idx*.1;s.max=s.hp}
+  this.boss.x=this.w/2;this.boss.y=-100;this.boss.phase=1;this.bossState={stage:'approach',timer:1.7,phaseFlash:0,attackIndex:0};this.moveTarget={x:this.w/2,y:this.hgt*.72};
+  const bi=$('#bossIntro');if(bi){bi.className='show';bi.innerHTML=`<small>⚠ ${sector.kind==='void'?'ANOMALY DETECTED':'SYSTEM WARNING'}</small><strong>${type.name}</strong><span>${type.desc}</span>`}const bb=$('#boss');if(bb)bb.textContent='';R.audio.play('boss');
+};
+GP.startBossFight=function(){if(!this.boss||!this.bossState)return;this.paused=false;this.active=true;this.bossState.stage='fight';this.bossState.timer=0;this.bossState.phaseFlash=0;this.boss.y=this.hgt*.19;if(!this.en.includes(this.boss))this.en.push(this.boss);const bi=$('#bossIntro');if(bi){bi.className='';bi.innerHTML=''}const bb=$('#boss');if(bb)bb.textContent=this.boss.type.name+' · PHASE I';R.audio.play('phase')};
+GP.bossUpdate=function(dt){
+  if(!this.bossState||!this.boss)return;
+  if(this.bossState.stage==='approach'){
+    this.boss.y+=(this.hgt*.19-this.boss.y)*Math.min(1,dt*1.8);this.bossState.timer-=dt;
+    if(this.bossState.timer<=0){this.bossState.stage='countdown';this.bossState.timer=3;const bi=$('#bossIntro');if(bi)bi.innerHTML=`<small>MANEUVERING ENABLED</small><strong>${this.boss.type.name}</strong><b>3</b>`}
+  }else if(this.bossState.stage==='countdown'){
+    this.boss.y+=(this.hgt*.19-this.boss.y)*Math.min(1,dt*3);this.bossState.timer-=dt;const n=Math.max(1,Math.ceil(this.bossState.timer)),bi=$('#bossIntro');if(bi)bi.innerHTML=`<small>MANEUVERING ENABLED</small><strong>${this.boss.type.name}</strong><b>${n}</b>`;if(this.bossState.timer<=0)this.startBossFight();
+  }else if(this.bossState.stage==='fight'){
+    this.syncSubsystems?.(this.boss);if(this.boss.hp/this.boss.max<=.5&&this.boss.phase===1){this.boss.phase=2;this.bossState.phaseFlash=1.5;this.boss.cd=Math.min(this.boss.cd||1,1.0);const bb=$('#boss');if(bb)bb.textContent=this.boss.type.name+' · PHASE II';R.audio.play('phase')}this.bossState.phaseFlash=Math.max(0,(this.bossState.phaseFlash||0)-dt);
+  }
+};
+
+// Normalize boss counters even across old field names.
+const prevEnemyDie=GP.enemyDie;
+GP.enemyDie=function(e){const boss=!!e?.boss,b0=this.bosses||0,bd0=this.bossesDefeated||0,r0=this.rerolls||0;prevEnemyDie.call(this,e);if(boss){this.bosses=Math.max(this.bosses||0,b0+1);this.bossesDefeated=Math.max(this.bossesDefeated||0,bd0+1);this.rerolls=Math.max(this.rerolls||0,r0+1)}};
+
+// One AUTO control only, and it never survives outside combat.
+const prevUpdate=GP.update;
+GP.update=function(dt){prevUpdate.call(this,dt);if(this.dead){document.querySelectorAll('#autoRun').forEach(n=>n.remove());return}const autos=[...document.querySelectorAll('#autoRun')];if(autos.length>1)autos.slice(0,-1).forEach(n=>n.remove())};
+
+// Draw fleet-role colors and the approaching boss on top of the base renderer.
+const prevDraw=GP.draw;
+GP.draw=function(){prevDraw.call(this);const x=this.x;if(this.bossState&&this.bossState.stage!=='fight'&&this.boss){const e=this.boss,sc=this.classScale?this.classScale(e.type.classIndex):1,sz=(e.size||52)*sc;x.save();x.translate(e.x,e.y);x.fillStyle=e.type.void?'#111318':e.type.pirate?'#747b80':e.type.color;x.strokeStyle=e.type.accent||e.type.color;x.lineWidth=e.type.void?3:2;x.beginPath();x.
