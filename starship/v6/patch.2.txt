@@ -1,0 +1,25 @@
+
+GP.hardpointOrigin=function(slot){const z=34*1.06,side=slot%2?1:-1,row=slot/2|0;return{x:this.cx+side*z*(.46+Math.min(3,row)*.06),y:this.cy-z*.45+row*z*.22}};
+GP.mountTarget=function(slot,w){const hp=this.hardpointOrigin(slot),list=[...(this.en||[]),...(this.rocks||[])].filter(t=>this.validTarget?this.validTarget(t):true);if(this.priority&&list.includes(this.priority)&&Math.hypot(this.priority.x-hp.x,this.priority.y-hp.y)<=w.range)return this.priority;let best=null,score=1e9;for(const t of list){const d=Math.hypot(t.x-hp.x,t.y-hp.y);if(d>w.range)continue;const claimed=(this.weaponTargets||[]).filter(x=>x===t).length,heavy=w.family==='torpedo'&&t.boss?-120:0,small=w.family==='flak'&&!t.boss?-60:0,s=d+claimed*85+heavy+small;if(s<score){score=s;best=t}}return best};
+GP.fireFromMount=function(t,w,slot){if(!t)return;const hp=this.hardpointOrigin(slot),m=this.wm?this.wm(w.family):{damage:1,rate:1,aoe:1,special:0},base=w.scatter?1+w.scatter:(w.burst||1),shots=base+(this.mods.shots||0)+(m.special&&w.family==='autocannon'?1:0),ang=Math.atan2(t.y-hp.y,t.x-hp.x);for(let j=0;j<shots;j++){const spread=w.scatter?.12:.045,a=ang+(j-(shots-1)/2)*spread,sp=w.slow?230:w.homing?310:w.kind==='beam'?1150:650;this.shots.push({x:hp.x,y:hp.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,damage:w.damage*this.mods.damage*m.damage,life:w.range/sp,pierce:(w.pierce||0)+(this.mods.pierce||0)+(m.special&&w.family==='railgun'?2:0),aoe:(w.aoe||0)*(this.mods.aoe||1)*m.aoe*(m.special&&w.family==='plasma'?1.35:1),color:w.color,homing:w.homing,target:t,family:w.family,ion:w.ion,chain:(w.chain||0)+(m.special&&w.family==='ion'?2:0)});}const snd=w.family==='railgun'?'rail':w.family==='missile'||w.family==='torpedo'?'missile':w.family==='ion'?'ion':w.family==='pulse'||w.family==='beam'?'laser':'shot';R.audio.play(snd,(hp.x/this.w-.5)*2)};
+GP.weapons=function(dt){const mounts=this.s.weaponMounts||this.s.weapons||[];this.weaponTargets=this.weaponTargets||[];mounts.forEach((id,i)=>{const w=R.WEAPONS.find(q=>q.id===id);if(!w){this.weaponTargets[i]=null;return}const m=this.wm?this.wm(w.family):{rate:1};this.weaponCd[i]=(this.weaponCd[i]||0)-dt;let t=this.weaponTargets[i];if(!t||!(this.validTarget?this.validTarget(t):true)||Math.hypot(t.x-this.cx,t.y-this.cy)>w.range*1.15)t=this.mountTarget(i,w);this.weaponTargets[i]=t;if(this.weaponCd[i]<=0&&t){this.fireFromMount(t,w,i);this.weaponCd[i]=1/(w.rate*this.mods.rate*(m.rate||1))}})};
+
+const baseOffer=GP.offer;
+GP.offer=function(){this.shield=Math.min(this.maxShield,this.shield+this.maxShield*.10);this.hp=Math.min(this.maxHp,this.hp+this.maxHp*.04);baseOffer.call(this);if(this.autoMode)this.autoChoose()};
+GP.autoChoose=function(){const cards=[...document.querySelectorAll('#cards .card')];if(!cards.length)return;const choices=this.currentChoices||[];const score=c=>{let s={common:1,uncommon:1.5,rare:2.2,epic:3.1,legendary:4.5,mythic:6,fractured:2.8}[c.rarity]||1,e=c.effect||{};if(c.family&&this.familySet?.().has(c.family))s+=1.2;if(['shieldRegen','regen','armor'].includes(e.k)&&(this.hp/this.maxHp<.65||this.shield/this.maxShield<.45))s+=1.3;if(e.k==='damage'||e.k==='rate')s+=.7;if(c.group==='synergy')s+=1.1;s+=(Math.random()-.5)*1.2;return s};let order=choices.map((c,i)=>[i,score(c)]).sort((a,b)=>b[1]-a[1]),seq=[0,1,2,order[1]?.[0]??1,order[0]?.[0]??0],k=0;const tick=()=>{cards.forEach(x=>x.classList.remove('aiThinking'));const idx=seq[k++];if(cards[idx])cards[idx].classList.add('aiThinking');if(k<seq.length)setTimeout(tick,220);else setTimeout(()=>cards[order[0][0]]?.click(),420)};setTimeout(tick,180)};
+const baseStartBoss=GP.startBossIntro;
+GP.startBossIntro=function(){this.autoMode=false;const b=$('#autoRun');if(b){b.classList.remove('on');b.textContent='AUTO'};return this.startSectorBoss()};
+GP.sectorIndex=function(){return Math.floor((Math.max(1,this.wave)-1)/10)};
+GP.pickSector=function(idx){
+  if(this.sectorMap?.[idx])return this.sectorMap[idx];this.sectorMap=this.sectorMap||{};let prev=this.sectorMap[idx-1],sector;
+  if(idx>=2&&Math.random()<.08)sector={kind:'void',id:'void',name:'VOID',color:'#62656c',accent:['#8d75ff','#58dfff','#ff596d'][Math.random()*3|0],bonus:1.75};
+  else if(idx>=1&&Math.random()<.14)sector={kind:'pirate',id:'pirates',name:'PIRATES',color:'#737a80',accent:R.SECTOR_FACTIONS[Math.random()*R.SECTOR_FACTIONS.length|0].color,bonus:1.2};
+  else{let pool=R.SECTOR_FACTIONS.filter(f=>f.id!==prev?.id);sector={...pool[Math.random()*pool.length|0],kind:'base',bonus:1}}
+  this.sectorMap[idx]=sector;return sector;
+};
+GP.spawnWave=function(){
+  this.wave++;this.active=true;const idx=this.sectorIndex(),sector=this.pickSector(idx);this.currentSector=sector;const we=$('#wave');if(we)we.textContent=`◈ ${this.wave} · ${sector.name}`;
+  if(this.wave%10===0){this.startSectorBoss();return}
+  let pool;
+  if(sector.kind==='base'){const fi=R.SECTOR_FACTIONS.findIndex(x=>x.id===sector.id);pool=R.ENEMIES.filter(e=>e.faction===fi)}else pool=R.ENEMIES.slice();
+  const budget=(6+this.wave*1.85)*(sector.kind==='void'?1.28:1),cap=Math.min(38,10+(this.wave/2|0));let left=budget;
