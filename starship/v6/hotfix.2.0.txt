@@ -1,0 +1,74 @@
+(()=>{
+const R=window.SR;
+if(!R||!R.App||!R.Game)throw new Error('V6.2 base runtime missing');
+R.VERSION='0.6.2';
+const $=s=>document.querySelector(s);
+const E=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+const B=(h,fn,c='btn')=>{const b=E('button',c,h);b.onclick=fn;return b};
+const fmt=n=>n<1000?Math.floor(n):n<1e6?(n/1000).toFixed(1)+'k':(n/1e6).toFixed(1)+'m';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const pick=a=>a[Math.random()*a.length|0];
+
+// Exact LoE fleet color identities. Sector palette is authoritative.
+R.SECTOR_FACTIONS=[
+ {id:'olydran',name:'OLYDRAN',color:'#f4f7fb',accent:'#ffffff',style:'fortress',desc:'White defensive fleets built around disciplined lanes, armor and shields.'},
+ {id:'elsari',name:'ELSARI',color:'#9b66e8',accent:'#d7b9ff',style:'tech',desc:'Purple technical fleets using precision fire, drones and electronic pressure.'},
+ {id:'rakkan',name:'RAKKAN',color:'#ef8a32',accent:'#ffc477',style:'aggressive',desc:'Orange hard-charging fleets favoring kinetics, close pressure and endurance.'},
+ {id:'svarin',name:'SVARIN',color:'#e9cf3e',accent:'#fff19a',style:'mobile',desc:'Yellow high-tempo fleets that reposition quickly and attack in bursts.'},
+ {id:'ashari',name:'ASHARI',color:'#d94d4d',accent:'#ff8a7d',style:'volatile',desc:'Red assault fleets built around pressure, dangerous payloads and aggressive commitment.'},
+ {id:'nevari',name:'NEVARI',color:'#52b96f',accent:'#a8eab7',style:'balanced',desc:'Green resilient fleets with balanced formations and steady pressure.'},
+ {id:'aaruian',name:'AARUIAN',color:'#3f8fdc',accent:'#8bc8ff',style:'disciplined',desc:'Blue disciplined formations with shields, control and coordinated fire.'}
+];
+R.OUTLINE_COLORS=R.SECTOR_FACTIONS.map(f=>f.color);
+
+// ---------- SAVE / INVENTORY / REAL-TIME R&D ----------
+const priorMigrate=R.migrate;
+R.rdDuration=level=>Math.min(900,Math.round(60+Math.pow(Math.max(0,level-1),1.35)*90));
+R.formatTime=sec=>{sec=Math.max(0,Math.ceil(sec));const m=Math.floor(sec/60),s=sec%60;return m?`${m}:${String(s).padStart(2,'0')}`:`0:${String(s).padStart(2,'0')}`};
+R.processResearch=s=>{
+  if(!s)return false;s.rd=s.rd||{weapons:0,drones:0,tactical:0,fleet:0};s.rdQueue=Array.isArray(s.rdQueue)?s.rdQueue:[];s.rdActive=s.rdActive||null;let changed=false,now=Date.now(),guard=0;
+  while(s.rdActive&&now>=s.rdActive.end&&guard++<8){
+    const j=s.rdActive;s.rd[j.track]=Math.max(s.rd[j.track]||0,j.target);s.rdActive=null;changed=true;
+    if(s.rdQueue.length){const q=s.rdQueue.shift(),start=j.end||now,dur=q.duration||R.rdDuration(q.target);s.rdActive={...q,start,end:start+dur*1000,duration:dur};}
+  }
+  if(!s.rdActive&&s.rdQueue.length){const q=s.rdQueue.shift(),dur=q.duration||R.rdDuration(q.target),start=Date.now();s.rdActive={...q,start,end:start+dur*1000,duration:dur};changed=true;}
+  return changed;
+};
+R.migrate=s=>{
+  s=priorMigrate(s);if(!s)return s;
+  s.weaponInventory=s.weaponInventory||{};s.weaponStock=s.weaponStock||{};
+  const mounts=(s.weaponMounts||s.weapons||[]).filter(Boolean);
+  const ids=new Set([...Object.keys(s.weaponStock),...Object.keys(s.weaponInventory),...(s.unlockedW||[]),...mounts]);
+  ids.forEach(id=>{const mounted=mounts.filter(x=>x===id).length,known=Math.max(Number(s.weaponInventory[id])||0,Number(s.weaponStock[id])||0,mounted);if(known>0){s.weaponInventory[id]=known;s.weaponStock[id]=known;}});
+  s.unlockedW=Array.isArray(s.unlockedW)?s.unlockedW:Object.keys(s.weaponStock);
+  for(const id of Object.keys(s.weaponStock))if(!s.unlockedW.includes(id))s.unlockedW.push(id);
+  R.processResearch(s);return s;
+};
+R.queueResearch=(s,track)=>{
+  R.processResearch(s);const t=R.RD_TRACKS?.[track];if(!t)return{ok:false,msg:'UNKNOWN PROJECT'};
+  const lvl=s.rd?.[track]||0;if(lvl>=t.max)return{ok:false,msg:'MAXIMUM'};
+  const jobs=[s.rdActive,...(s.rdQueue||[])].filter(Boolean);if(jobs.some(j=>j.track===track))return{ok:false,msg:'ALREADY QUEUED'};
+  if(jobs.length>=3)return{ok:false,msg:'QUEUE FULL'};
+  const cost=t.cost(lvl);if((s.salvage||0)<cost)return{ok:false,msg:'NEED SALVAGE'};
+  s.salvage-=cost;const target=lvl+1,duration=R.rdDuration(target),job={track,target,duration};
+  if(!s.rdActive){const start=Date.now();s.rdActive={...job,start,end:start+duration*1000};}else s.rdQueue.push(job);
+  return{ok:true,cost};
+};
+
+const AP=R.App.prototype;
+const oldShell=AP.shell;
+AP.shell=function(...args){
+  clearInterval(this._rdInterval);this._rdInterval=null;
+  document.querySelectorAll('#autoRun,#pauseMenu,#bossVictory,#engineerTrader').forEach(n=>n.remove());
+  const out=oldShell.apply(this,args);if(this.s){const changed=R.processResearch(this.s);if(changed)R.save(this.s);}return out;
+};
+
+AP.tab_research=function(c){
+  this.s=R.migrate(this.s);const changed=R.processResearch(this.s);if(changed)R.save(this.s);
+  c.append(E('div','hint','<span>◆ R&D</span><small>One project researches in real time. Two more can wait in the queue. Research continues while you fly or leave the game.</small>'));
+  const active=E('div','rdStatus');c.append(active);
+  const renderStatus=()=>{
+    const s=this.s,j=s.rdActive,q=s.rdQueue||[];
+    if(!j){active.innerHTML='<div class="panel rdIdle"><b>LAB IDLE</b><small>Select a technology below to begin research.</small></div>';return;}
+    const t=R.RD_TRACKS[j.track],now=Date.now(),total=Math.max(1,j.end-j.start),left=Math.max(0,j.end-now),pct=clamp((now-j.start)/total*100,0,100);
+    active.innerHTML=`<div class="panel rdActiv
