@@ -1,0 +1,62 @@
+ return s;
+};
+
+// ---------- STATION / CHROME LIFECYCLE ----------
+const priorShell=AP.shell;
+AP.shell=function(...args){
+  cancelAnimationFrame(this._v8ShipAnim||0);this._v8ShipAnim=0;
+  document.querySelectorAll('#runDeck,#runDeckSheet,.v8Announce').forEach(n=>n.remove());
+  const out=priorShell.apply(this,args);
+  if(this.s){this.s=R.migrate(this.s);if(this.s._v8ResearchNotice){this.s._v8ResearchNotice=false;R.save(this.s);setTimeout(()=>this.toast?.('RESEARCH COMPLETE'),120)}}
+  return out;
+};
+const priorStation=AP.station;
+AP.station=function(t=this.tab){
+  cancelAnimationFrame(this._v8ShipAnim||0);this._v8ShipAnim=0;
+  document.querySelectorAll('#runDeck,#runDeckSheet').forEach(n=>n.remove());
+  const out=priorStation.call(this,t);
+  requestAnimationFrame(()=>this.v8Chrome?.());
+  return out;
+};
+AP.v8Chrome=function(){
+  if(document.body.classList.contains('combat'))return;
+  const top=$('.top');if(top){top.className='top v8Top';top.innerHTML=`<button class="v8Menu" aria-label="Menu">☰</button><div class="v8Title"><small>LoE</small><b>STARSHIP SURVIVOR</b></div><span>▰ ${fmt(this.s?.salvage||0)}<br>◆ ${this.s?.cores||0}</span>`;top.querySelector('.v8Menu').onclick=()=>this.main();}
+  document.querySelectorAll('#runDeck,#runDeckSheet').forEach(n=>n.remove());
+};
+
+// ---------- CLEAN PHYSICAL SYSTEMS ----------
+AP.tab_systems=function(c){
+  this.s=R.migrate(this.s);const s=this.s,h=R.HULLS[s.hull],nextHull=R.HULLS[s.hull+1];
+  c.append(E('div','hint','<span>⚙ SHIP SYSTEMS</span><small>Physical hardware installed aboard the flagship. R&D unlocks possibilities; systems determine what this ship can actually do.</small>'));
+  if(nextHull){const p=E('div','panel v8System');p.innerHTML=`<i class="gearIcon">⬢</i><span class="gearBody"><b>HULL · ${h.name}</b><small>Upgrade the flagship frame for more crew, hardpoints and equipment capacity.</small><strong>NEXT: ${nextHull.name.toUpperCase()} · ▰ ${fmt(nextHull.cost)}</strong></span>`;p.append(B('UPGRADE',()=>{if(s.salvage<nextHull.cost)return this.deny('NEED SALVAGE');s.salvage-=nextHull.cost;s.hull++;const slots=R.HULLS[s.hull].weapons;s.weaponMounts=s.weaponMounts||[];while(s.weaponMounts.length<slots)s.weaponMounts.push(null);s.weaponMounts=s.weaponMounts.slice(0,slots);s.weapons=s.weaponMounts.filter(Boolean);R.save(s);this.station('systems')},'btn small primary'));c.append(p)}
+  const sysOrder=['shield','armor','reactor','fireControl','engines','droneBay','hangar'];
+  for(const key of sysOrder){const d=R.SYSTEMS[key];if(!d)continue;const lvl=s.systems[key]||0,max=d.max||1,p=E('div','panel v8System '+(lvl>=max?'maxed':''));p.innerHTML=`<i class="gearIcon">${d.icon}</i><span class="gearBody"><b>${d.name}</b><small>${d.desc}</small><strong>${d.stat?d.stat(lvl):`LEVEL ${lvl}/${max}`}</strong></span>`;
+    if(key==='droneBay')p.append(E('em',lvl?'ok':'lock',lvl?'✓ INSTALLED':'🔒 DRONE DEVELOPMENT I'));
+    else if(lvl>=max)p.append(E('i','ok','✓'));
+    else{const cost=d.cost(lvl),button=B(`UPGRADE<small>▰ ${fmt(cost)}</small>`,()=>{if(s.salvage<cost)return this.deny('NEED SALVAGE');s.salvage-=cost;s.systems[key]=(s.systems[key]||0)+1;R.save(s);this.station('systems')},'btn small');p.append(button)}
+    c.append(p);
+  }
+  const qMax=Math.max(h.crew,2),q=s.quarters||2,qPanel=E('div','panel v8System '+(q>=qMax?'maxed':''));qPanel.innerHTML=`<i class="gearIcon">👥</i><span class="gearBody"><b>Crew Quarters</b><small>Determines how many hired crew can be active aboard this hull.</small><strong>${q}/${qMax} ACTIVE BUNKS</strong></span>`;if(q>=qMax)qPanel.append(E('i','ok','✓'));else{const cost=380+q*260;qPanel.append(B(`EXPAND<small>▰ ${fmt(cost)}</small>`,()=>{if(s.salvage<cost)return this.deny('NEED SALVAGE');s.salvage-=cost;s.quarters=q+1;R.save(s);this.station('systems')},'btn small'))}c.append(qPanel);
+};
+
+AP.tab_upgrades=AP.tab_systems;
+
+// ---------- R&D: SHORT, VISIBLE, MEANINGFUL ----------
+AP.tab_research=function(c){
+  this.s=R.migrate(this.s);const changed=R.processResearch?.(this.s);if(changed)R.save(this.s);
+  c.append(E('div','hint','<span>◆ R&D LAB</span><small>Research continues in real time. Early projects take seconds, advanced work takes a few minutes.</small>'));
+  const active=E('div','v8ResearchStatus');c.append(active);
+  const render=()=>{
+    const s=this.s,j=s.rdActive,q=s.rdQueue||[];
+    if(!j){active.innerHTML='<div class="panel v8LabIdle"><small>LAB STATUS</small><b>READY FOR PROJECT</b><span>No active research.</span></div>';return;}
+    const t=R.RD_TRACKS[j.track],now=Date.now(),total=Math.max(1,(j.end||now+1)-(j.start||now)),left=Math.max(0,(j.end||now)-now),pct=clamp((now-(j.start||now))/total*100,0,100);
+    active.innerHTML=`<div class="panel v8LabActive"><small>RESEARCH IN PROGRESS</small><div><b>${t.icon} ${t.name.toUpperCase()} ${j.target}</b><strong>${R.formatTime(left/1000)}</strong></div><u><i style="width:${pct}%"></i></u><span>${t.unlocks[j.target-1]||'Technology development'}</span></div>${q.length?`<div class="v8Queue"><small>QUEUE</small>${q.map((x,i)=>`<span>${i+1}. ${R.RD_TRACKS[x.track].name} ${x.target} · ${R.formatTime(x.duration||R.rdDuration(x.target))}</span>`).join('')}</div>`:''}`;
+  };
+  render();
+  for(const [key,t] of Object.entries(R.RD_TRACKS)){
+    const lvl=this.s.rd?.[key]||0,next=lvl+1,jobs=[this.s.rdActive,...(this.s.rdQueue||[])].filter(Boolean),busy=jobs.some(j=>j.track===key),full=jobs.length>=3,max=lvl>=t.max,row=E('div','panel v8ResearchProject');
+    const path=t.unlocks.map((u,i)=>`<span class="${i<lvl?'done':i===lvl?'next':''}"><i>${i<lvl?'✓':i+1}</i>${u}</span>`).join('');
+    row.innerHTML=`<div class="v8RDHead"><i class="gearIcon">${t.icon}</i><span><b>${t.name}</b><small>${t.desc}</small></span></div><div class="v8TechPath">${path}</div>`;
+    if(max)row.append(E('i','ok','✓ COMPLETE'));
+    else if(busy)row.append(E('em','lock','IN QUEUE'));
+    else{const cost=t.cost(lvl),duration=R.rdDuration(next),b=B(`RESEARCH ${next}<small>▰ ${fmt(cost)} · ${R.formatTime(duration
