@@ -1,0 +1,7 @@
+/* v0.8.2 boss, pacing, announcement and audio stability */
+.v8Announce{justify-content:center!important;background:rgba(0,0,0,.38)!important;backdrop-filter:blur(1.5px)!important;-webkit-backdrop-filter:blur(1.5px)!important;padding-bottom:7vh!important}
+.v8Announce.go{animation:v82Announcement 3s ease both!important}
+@keyframes v82Announcement{0%{opacity:0;transform:translateY(7px) scale(.992)}7%{opacity:1;transform:translateY(0) scale(1)}38%{opacity:1}100%{opacity:0;transform:translateY(-4px) scale(1.008)}}
+#bossIntro.show{position:fixed!important;inset:0!important;z-index:225!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;padding:20px 20px 8vh!important;background:rgba(0,0,0,.42)!important;backdrop-filter:blur(1.5px)!important;-webkit-backdrop-filter:blur(1.5px)!important;animation:v82BossIntro 2.7s ease both!important}
+#bossIntro.show small{font-size:8px!important;letter-spacing:.28em!important;margin-bottom:10px!important;color:#ff9aa7!important}#bossIntro.show strong{font-size:26px!important;letter-spacing:.14em!important;line-height:1.05!important}#bossIntro.show span{max-width:78vw!important;margin-top:8px!important;font-size:8px!important;letter-spacing:.08em!important;color:#9db1bd!important}#bossIntro.show b{font-size:34px!important;margin-top:12px!important}
+@keyframes v82BossIntro{0%{opacity:0}8%{opacity:1}45%{opacity:1}100%{opacity:0}}
