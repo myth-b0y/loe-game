@@ -1,0 +1,7 @@
+(()=>{
+const R=window.SR;if(!R||!R.App||!R.Game)return;const AP=R.App.prototype,GP=R.Game.prototype;
+// Keep System-page refreshes compatible with both the old "upgrades" tab key and the newer "systems" label.
+const station=AP.station;AP.station=function(t=this.tab){if(t==='systems'&&this.tab==='upgrades')t='upgrades';return station.call(this,t)};
+// Resource fields are always harmless to the flagship, even if a legacy collision path fires.
+const hit=GP.hitShip;if(hit)GP.hitShip=function(d,x,y){if(this._v8Encounter?.type==='asteroid')return;return hit.call(this,d,x,y)};
+})();
