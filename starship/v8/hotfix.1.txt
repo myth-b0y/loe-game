@@ -1,0 +1,38 @@
+(()=>{
+'use strict';
+const R=window.SR;if(!R?.App||!R?.Game)return;
+R.VERSION='0.8.1';
+const AP=R.App.prototype,GP=R.Game.prototype,$=s=>document.querySelector(s),E=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+
+// Flight Development now follows the same dependency logic as Drone Development:
+// commission the physical hangar first, then craft types, then capacity, then advanced craft.
+R.RD_TRACKS.fleet={name:'Flight Development',icon:'▷',max:4,desc:'Commission the hangar first, then develop support craft and expand flight-control capacity.',cost:l=>1200+1550*l,unlocks:['Hangar · Interceptor & Heavy Fighter','Bomber & EW Craft','Expanded Flight Control · +1 capacity','Rescue Cutter & Escort Gunship']};
+for(const s of R.SUPPORTS||[]){if(['support.interceptor','support.fighter'].includes(s.id))s.rd=1;else if(['support.bomber','support.ew'].includes(s.id))s.rd=2;else s.rd=4;}
+if(R.SYSTEMS?.hangar)Object.assign(R.SYSTEMS.hangar,{max:1,cost:()=>0,desc:'One-time physical support-craft facility. Commissioned through Flight Development I; later research expands flight-control capacity.',stat:l=>l?'INSTALLED':'RESEARCH REQUIRED'});
+const milestone=R.applyResearchMilestone;
+R.applyResearchMilestone=(s,track,level)=>{milestone?.(s,track,level);if(track==='fleet'){if(level>=1)s.systems.hangar=Math.max(1,s.systems.hangar||0);if(level>=3)s.systems.hangar=Math.max(2,s.systems.hangar||0)}};
+const migrate=R.migrate;
+R.migrate=s=>{s=migrate(s);if(!s)return s;if((s.rd?.fleet||0)>=1)s.systems.hangar=Math.max(1,s.systems.hangar||0);if((s.rd?.fleet||0)>=3)s.systems.hangar=Math.max(2,s.systems.hangar||0);s.version='0.8.1';return s;};
+
+// Hangar is research-managed, never a zero-cost direct Systems purchase.
+const systems=AP.tab_systems;
+AP.tab_systems=function(c){systems.call(this,c);for(const p of c.querySelectorAll('.panel')){if(!/^.*Hangar/i.test(p.textContent||''))continue;const b=p.querySelector('button');if(b)b.replaceWith(E('em',(this.s.systems.hangar||0)?'ok':'lock',(this.s.systems.hangar||0)?'✓ R&D CONTROLLED':'🔒 FLIGHT DEVELOPMENT I'));}};
+AP.tab_upgrades=AP.tab_systems;
+
+// Resource fields start deliberately spaced instead of spawning as a visual pile.
+GP._v8BeginAsteroids=function(wave,sector){
+  this._v8Encounter={type:'asteroid',wave,sector,complete:false};this.en=[];this.bad=[];this.tele=[];this.rocks=[];
+  const count=5+Math.min(3,Math.floor(wave/20)),cx=this.cx??this.w/2,cy=this.cy??this.hgt*.48;let guard=0;
+  while(this.rocks.length<count&&guard++<240){const size=Math.random()<.3?3:2,r=size===3?34+Math.random()*6:23+Math.random()*5,x=62+r+Math.random()*Math.max(20,this.w-124-r*2),y=112+r+Math.random()*Math.max(30,this.hgt-230-r*2);if(Math.hypot(x-cx,y-cy)<r+105)continue;if(this.rocks.some(q=>Math.hypot(q.x-x,q.y-y)<q.r+r+42))continue;const rock=this._v8MakeRock(size,Math.random()<.2,x,y);rock.vx=(Math.random()-.5)*34;rock.vy=(Math.random()-.5)*28;this.rocks.push(rock)}
+  while(this.rocks.length<count){const i=this.rocks.length,size=2,x=70+(i%2)*(this.w-140),y=130+Math.floor(i/2)*90;this.rocks.push(this._v8MakeRock(size,false,x,y))}
+  this.active=true;this.count=999;const we=$('#wave');if(we)we.textContent=`◈ ${wave} · RESOURCE FIELD`;this.announce('SYSTEM CONTACT','RESOURCE FIELD DETECTED','Clear every asteroid to continue.','resource');
+};
+
+// Combat groups can overlap as the run grows, producing sustained battles without making wave completion timer-based.
+const update=GP.update;
+GP.update=function(dt){update.call(this,dt);const e=this._v8Encounter;if(this.dead||this.paused||!e||e.type!=='combat'||e.queueDone||e.complete)return;const threshold=Math.min(7,2+Math.floor(this.wave/8));if((this.en?.length||0)<=threshold)this._v8SpawnGroup?.();};
+
+// Put the run-build control above Tactical Systems rather than stacking it under AUTO.
+const build=GP.build;
+GP.build=function(){build.call(this);const d=$('#runDeck');if(d){d.classList.add('v8DeckPos');d.innerHTML='<b>▤</b><small>BUILD</small>';}};
+})();
