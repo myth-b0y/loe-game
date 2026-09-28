@@ -1,0 +1,5 @@
+moveTo(0,-sz);x.lineTo(sz*.75,sz*.65);x.lineTo(0,sz*.4);x.lineTo(-sz*.75,sz*.65);x.closePath();x.fill();x.stroke();x.restore()}
+  for(const u of this.droneUnits||[]){const c=R.droneColor(u.def);x.fillStyle=c;x.strokeStyle='#071018';x.lineWidth=1.2;x.beginPath();x.arc(u.x,u.y,5,0,Math.PI*2);x.fill();x.stroke();if(u.def.role!=='defense'){x.strokeStyle=c;x.globalAlpha=.35;x.beginPath();x.arc(u.x,u.y,8,0,Math.PI*2);x.stroke();x.globalAlpha=1}}
+  for(const u of this.supportUnits||[]){x.strokeStyle='#d6e6ef';x.lineWidth=1.5;x.beginPath();x.moveTo(u.x,u.y-7);x.lineTo(u.x+6,u.y+6);x.lineTo(u.x-6,u.y+6);x.closePath();x.stroke()}
+};
+})();
