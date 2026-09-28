@@ -1,0 +1,36 @@
+e());const o=E('div','v8Announce '+kind);o.innerHTML=`<small>${kicker||''}</small><b>${title||''}</b>${sub?`<span>${sub}</span>`:''}`;document.body.append(o);requestAnimationFrame(()=>o.classList.add('go'));setTimeout(()=>{o.remove();done?.()},2700);
+};
+GP.v8SectorLabel=function(sector){if(!sector)return{race:'UNKNOWN',force:'UNKNOWN CONTACT'};if(sector.kind==='void')return{race:'VOID',force:'VOID INCURSION'};if(sector.kind==='pirate')return{race:'PIRATES',force:'FREEBOOTER FLOTILLA'};return{race:sector.name||'UNKNOWN',force:sector.forceName||`${sector.name||'UNKNOWN'} FLEET`}};
+GP._v8SpawnType=function(sector){if(this._safeSectorType)return this._safeSectorType(sector);if(this._sectorType)return this._sectorType(sector);const a=(R.ENEMIES||[]).filter(Boolean);return a.length?{...a[Math.random()*a.length|0]}:null};
+GP._v8SpawnGroup=function(){const e=this._v8Encounter;if(!e||e.type!=='combat'||!e.queue.length)return;const n=e.queue.shift();for(let i=0;i<n;i++){const type=this._v8SpawnType(e.sector);if(type)this.spawn(type)}e.groupsSpawned++;e.queueDone=e.queue.length===0;this.active=true;this.count=999;};
+GP._v8BeginCombat=function(wave,sector){const groups=2+Math.min(4,Math.floor(wave/8)),base=2+Math.min(4,Math.floor(wave/12));const queue=Array.from({length:groups},(_,i)=>Math.max(2,base+((i+wave)%2)));this._v8Encounter={type:'combat',wave,sector,queue,groupsSpawned:0,queueDone:false,complete:false};this.en=[];this.rocks=[];this.bad=[];this.tele=[];this.active=true;this.count=999;this._v8SpawnGroup();};
+GP._v8MakeRock=function(size=2,rich=false,x=null,y=null){const r=size===3?34+Math.random()*7:size===2?24+Math.random()*5:14+Math.random()*4,hp=(size===3?230:size===2?135:65)+this.wave*(size===3?7:size===2?4:2);return{rock:true,_v8Size:size,rich,x:x??(55+Math.random()*(this.w-110)),y:y??(125+Math.random()*Math.max(120,this.hgt*.58)),vx:(Math.random()-.5)*42,vy:(Math.random()-.5)*34,r,hp,max:hp,value:Math.round((rich?125:58)*(.55+size*.28)+this.wave*(rich?5:3)),spin:Math.random()*6}};
+GP._v8BeginAsteroids=function(wave,sector){this._v8Encounter={type:'asteroid',wave,sector,complete:false};this.en=[];this.bad=[];this.tele=[];this.rocks=[];const n=5+Math.min(4,Math.floor(wave/18));for(let i=0;i<n;i++){const size=Math.random()<.35?3:2;this.rocks.push(this._v8MakeRock(size,Math.random()<.22))}this.active=true;this.count=999;const we=$('#wave');if(we)we.textContent=`◈ ${wave} · RESOURCE FIELD`;this.announce('SYSTEM CONTACT','RESOURCE FIELD DETECTED','Clear every asteroid to continue.','resource');};
+GP._v8BeginBoss=function(wave,sector){this._v8Encounter={type:'boss',wave,sector,complete:false,victoryResolved:false,traderResolved:wave%20!==0};this.en=[];this.rocks=[];this.bad=[];this.tele=[];this.active=true;this.count=999;const label=this.v8SectorLabel(sector),kind=sector.kind==='void'?'void':sector.kind==='pirate'?'warning':'boss';this.paused=true;this.announce(sector.kind==='void'?'⚠ ANOMALY DETECTED':sector.kind==='pirate'?'⚠ HOSTILE COMMAND CONTACT':'BOSS CONTACT',label.force,`WAVE ${wave}`,kind,()=>{this.paused=false;try{this.startSectorBoss()}catch(e){this._showRuntimeFault?.(e)}})};
+GP._v8FinishEncounter=function(){const e=this._v8Encounter;if(!e)return;this._v8LastEncounterType=e.type;this._v8Encounter=null;this._v7WaveState=null;this._v7Asteroid=false;this.active=false;this.bad=[];this.tele=[];if(this.mines)this.mines=[];this.count=1.0;};
+GP.spawnAsteroids=function(){};
+GP.spawnWave=function(){
+  if(this._v8Encounter&&!this._v8Encounter.complete)return;
+  const wave=(Number(this.wave)||0)+1,idx=Math.floor((wave-1)/10),sector=this.pickSector?this.pickSector(idx):this.currentSector||{kind:'base',name:'UNKNOWN',color:'#8aa'};this.wave=wave;this.currentSector=sector;const we=$('#wave');if(we)we.textContent=`◈ ${wave} · ${sector.name||'UNKNOWN'}`;
+  const begin=()=>{if(wave%10===0)return this._v8BeginBoss(wave,sector);const canField=wave>=4&&wave%10!==0&&this._v8LastEncounterType!=='asteroid'&&Math.random()<.08;if(canField)this._v8BeginAsteroids(wave,sector);else this._v8BeginCombat(wave,sector)};
+  if(wave%10===1){const label=this.v8SectorLabel(sector),kind=sector.kind==='void'?'void':sector.kind==='pirate'?'warning':'sector';this.paused=true;this._v8Encounter={type:'intro',wave,sector,complete:false};this.announce(sector.kind==='void'?'⚠ ANOMALOUS CONTACT':sector.kind==='pirate'?'⚠ UNALIGNED FLEET':'SECTOR CONTACT',label.force,label.race,kind,()=>{this._v8Encounter=null;this.paused=false;begin()});}else begin();
+};
+
+// Asteroid physics and fracture detection wrap the existing simulation so weapons still work normally.
+const priorUpdate=GP.update;
+GP.update=function(dt){
+  const enc=this._v8Encounter,beforeRocks=enc?.type==='asteroid'?[...(this.rocks||[])]:null;
+  if(enc&&!enc.complete){this.active=true;this.count=999;if(enc.type==='asteroid'){this.en=[];this.bad=[];this.tele=[];}}
+  priorUpdate.call(this,dt);
+  if(this.dead||this.paused)return;
+  const e=this._v8Encounter;if(!e)return;
+  if(e.type==='combat'){
+    this.rocks=[];this.active=true;this.count=999;
+    if(!e.queueDone&&(this.en?.length||0)<=1)this._v8SpawnGroup();
+    if(e.queueDone&&(this.en?.length||0)===0)this._v8FinishEncounter();
+  }else if(e.type==='asteroid'){
+    this.en=[];this.bad=[];this.tele=[];this.active=true;this.count=999;
+    const gone=(beforeRocks||[]).filter(r=>!this.rocks.includes(r));
+    for(const r of gone){if((r._v8Size||1)>1&&!r._v8Split){r._v8Split=true;const childSize=(r._v8Size||2)-1;for(let i=0;i<2;i++){const c=this._v8MakeRock(childSize,r.rich,r.x+(i?8:-8),r.y);c.vx=(i?1:-1)*(28+Math.random()*22);c.vy=(Math.random()-.5)*45;c.value=Math.max(8,Math.round((r.value||40)*.35));this.rocks.push(c)}}}
+    const rocks=this.rocks||[];
+    for(let i=0;i<rocks.length;i++){const a=rocks[i];if(!a)continue;a.x=clamp(a.x,a.r+8,this.w-a.r-8);a.y=clamp(a.y,92+a.r,this.hgt-a.r-74);if(a.x<=a.r+9||a.x>=this.w-a.r-9)a.vx*=-1;if(a.y<=92+a.r+1||a.y>=this.hgt-a.r-75)a.vy*=-1;const dx=a.x-this.cx,dy=a.y-this.cy,d=Math.hy
