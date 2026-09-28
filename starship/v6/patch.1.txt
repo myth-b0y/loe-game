@@ -1,0 +1,41 @@
+
+AP.mountWeapon=function(id){
+  this.syncMounts(); const w=R.WEAPONS.find(x=>x.id===id), h=R.HULLS[this.s.hull],cap=this.weaponCapacity();
+  let sh=$('#mountSheet');if(sh)sh.remove();sh=el('div','mountSheet');
+  sh.innerHTML=`<div class="mountCard"><header><span><small>MOUNT WEAPON</small><b>${w.name}</b></span><button class="mountClose">×</button></header><canvas id="mountCanvas" width="500" height="430"></canvas><p>Select a hardpoint. Occupied hardpoints will be replaced.</p><div class="mountActions"><button class="btn" id="mountCancel">CANCEL</button><button class="btn primary" id="mountOk" disabled>CONFIRM</button></div></div>`;
+  document.body.append(sh); let selected=-1;
+  const cv=sh.querySelector('#mountCanvas'),ctx=cv.getContext('2d');
+  const draw=()=>{ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#02050a';ctx.fillRect(0,0,cv.width,cv.height);R.drawShip(ctx,250,205,1.5,this.s.weaponMounts.filter(Boolean),this.s.hull,true,{});const count=h.weapons;for(let i=0;i<count;i++){const a=i/count*Math.PI*2-Math.PI/2,rx=250+Math.cos(a)*130,ry=205+Math.sin(a)*95,occ=this.s.weaponMounts[i];ctx.beginPath();ctx.arc(rx,ry,18,0,7);ctx.fillStyle=i===selected?'#163e50':occ?'#2a2020':'#0d2631';ctx.fill();ctx.strokeStyle=i===selected?'#78e4ff':occ?'#ff9a88':'#4e8ca7';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#eaf5fb';ctx.font='14px system-ui';ctx.textAlign='center';ctx.fillText(String(i+1),rx,ry+5);if(occ){const ow=R.WEAPONS.find(z=>z.id===occ);ctx.font='18px system-ui';ctx.fillText(ow?.icon||'⊙',rx,ry-27)}}};
+  draw();
+  cv.onclick=e=>{const r=cv.getBoundingClientRect(),px=(e.clientX-r.left)*cv.width/r.width,py=(e.clientY-r.top)*cv.height/r.height;let best=-1,bd=25;for(let i=0;i<h.weapons;i++){const a=i/h.weapons*Math.PI*2-Math.PI/2,x=250+Math.cos(a)*130,y=205+Math.sin(a)*95,d=Math.hypot(px-x,py-y);if(d<bd){bd=d;best=i}}if(best>=0){selected=best;sh.querySelector('#mountOk').disabled=false;draw()}};
+  const close=()=>sh.remove();sh.querySelector('.mountClose').onclick=close;sh.querySelector('#mountCancel').onclick=close;
+  sh.querySelector('#mountOk').onclick=()=>{if(selected<0)return;const occupied=this.s.weaponMounts[selected];const mounted=this.s.weaponMounts.filter(Boolean).length;if(!occupied&&mounted>=cap){this.deny('NEED ANOTHER GUNNER');return}this.s.weaponMounts[selected]=id;this.syncMounts();R.save(this.s);close();this.station('arsenal')};
+};
+AP.listWeapons=function(c){
+  this.syncMounts(); const h=R.HULLS[this.s.hull];
+  c.append(el('div','hint',`<span>⊙ ${this.s.weaponMounts.filter(Boolean).length}/${this.weaponCapacity()}</span><small>Each copy is owned separately. Equip opens the hardpoint layout.</small>`));
+  R.WEAPONS.forEach(w=>{const count=this.s.weaponInventory[w.id]||0,mounted=this.s.weaponMounts.filter(x=>x===w.id).length,hullOK=this.s.hull>=w.minHull,r=el('div','panel gear '+(mounted?'on ':'')+(!hullOK?'locked':''));r.innerHTML=`<i class="gearIcon" style="color:${w.color}">${w.icon}</i><span class="gearBody"><b>${w.name}</b><small>${w.desc}</small><strong>OWNED ${count} · MOUNTED ${mounted}</strong>${!hullOK?`<em>🔒 ${R.HULLS[w.minHull].name}</em>`:''}</span>`;
+    const actions=el('div','weaponActions');
+    if(hullOK){actions.append(btn(`BUY<br><small>▰ ${fmt(w.cost)}</small>`,()=>{if(this.s.salvage<w.cost)return this.deny('NEED SALVAGE');this.s.salvage-=w.cost;this.s.weaponInventory[w.id]=(this.s.weaponInventory[w.id]||0)+1;if(!this.s.unlockedW.includes(w.id))this.s.unlockedW.push(w.id);R.save(this.s);this.station('arsenal')},'btn small'));if(count>mounted)actions.append(btn('EQUIP',()=>this.mountWeapon(w.id),'btn small primary'));}
+    r.append(actions);c.append(r)
+  });
+  c.append(btn('⊙ MANAGE HARDPOINTS',()=>this.mountWeapon(this.s.weaponMounts.find(Boolean)||'weapon.autocannon'),'btn quiet'));
+};
+const baseSlots=AP.slots;
+AP.slots=function(){
+  const m=this.shell('SAVE SLOTS'),all=R.loadAll();
+  for(let i=1;i<=3;i++){const s=R.getSlot(i),p=el('div','panel save saveManaged');if(!s){p.innerHTML=`<span><b>SLOT ${i}</b><small>EMPTY</small></span>`;p.append(btn('NEW',()=>{this.s=R.newSave(i);R.save(this.s);this.station()},'btn small primary'))}else{p.innerHTML=`<span><b>${s.shipName||'UNNAMED VESSEL'}</b><small>SLOT ${i} · WAVE ${s.records?.wave||0} · ${R.HULLS[s.hull].name}</small></span>`;const a=el('div','saveBtns');a.append(btn('LOAD',()=>{this.s=R.getSlot(i);this.station()},'btn small primary'),btn('OVERWRITE',()=>{if(confirm('Overwrite this save?')){this.s=R.newSave(i);R.save(this.s);this.station()}},'btn small'),btn('DELETE',()=>{if(confirm('Delete this save permanently?')){const z=R.loadAll();delete z.slots[i];localStorage.setItem('sr_mobile_v2',JSON.stringify(z));this.slots()}},'btn small danger'));p.append(a)}m.append(p)}m.append(btn('‹ BACK',()=>this.main(),'btn back'));
+};
+AP.launch=function(){
+  this.s=R.migrate(this.s);R.save(this.s); const cps=[...new Set(this.s.checkpoints||[1])].sort((a,b)=>a-b);
+  if(cps.length<=1)return this.startAtCheckpoint(1);
+  const sh=el('div','launchSheet'),card=el('div','launchCard','<small>LAUNCH CHECKPOINT</small><h2>SELECT ENTRY WAVE</h2><p>Higher checkpoints skip early sectors, but your run build starts fresh.</p>');
+  const g=el('div','checkpointGrid');cps.forEach(w=>g.append(btn(`WAVE ${w}`,()=>{sh.remove();this.startAtCheckpoint(w)},'btn '+(w===1?'primary':''))));card.append(g,btn('CANCEL',()=>sh.remove(),'btn quiet'));sh.append(card);document.body.append(sh)
+};
+AP.startAtCheckpoint=function(w){R.save(this.s);const g=new R.Game(this,this.s);g.startCheckpoint=w;g.wave=Math.max(0,w-1);g.count=.8;g.sectorMap={};};
+
+// ---------- GAME ----------
+const GP=R.Game.prototype;
+const baseBuild=GP.build;
+GP.build=function(){baseBuild.call(this);this.autoMode=false;const ab=btn('AUTO','', 'autoRun');ab.id='autoRun';ab.onclick=()=>{this.autoMode=!this.autoMode;ab.classList.toggle('on',this.autoMode);ab.textContent=this.autoMode?'AUTO ✓':'AUTO'};document.body.append(ab);const p=$('#pause');if(p)p.onclick=()=>this.openPauseMenu()};
+GP.openPauseMenu=function(){if($('#pauseMenu'))return;this.paused=true;const o=el('div','pauseMenu');o.id='pauseMenu';o.innerHTML=`<div class="pauseCard"><small>RUN PAUSED</small><h2>${this.s.shipName||'FLAGSHIP'}</h2><button class="btn primary" data-a="resume">RESUME</button><button class="btn" data-a="restart">RESTART RUN</button><button class="btn" data-a="station">STATION</button><button class="btn" data-a="settings">SETTINGS</button><button class="btn quiet" data-a="quit">QUIT TO MAIN MENU</button><div class="pauseSettings"><label>AUDIO <input type="range" min="0" max="1" step=".1" value="${this.s.settings?.audio??1}"></label></div></div>`;document.body.append(o);const close=()=>{o.remove();this.paused=false};o.querySelector('[data-a=resume]').onclick=close;o.querySelector('[data-a=restart]').onclick=()=>{this.dead=true;o.remove();new R.Game(this.app,this.s)};o.querySelector('[data-a=station]').onclick=()=>{this.dead=true;o.remove();this.app.station()};o.querySelector('[data-a=quit]').onclick=()=>{this.dead=true;o.remove();this.app.main()};o.querySelector('[data-a=settings]').onclick=()=>o.querySelector('.pauseSettings').classList.toggle('show');o.querySelector('input').oninput=e=>{R.audio.master=+e.target.value;this.s.settings=this.s.settings||{};this.s.settings.audio=+e.target.value;R.save(this.s)};};
