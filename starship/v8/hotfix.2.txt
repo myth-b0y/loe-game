@@ -3,6 +3,7 @@
 const R=window.SR;if(!R?.App||!R?.Game)return;
 R.VERSION='0.8.2';
 const AP=R.App.prototype,GP=R.Game.prototype,$=s=>document.querySelector(s);
+const migrate=R.migrate;R.migrate=s=>{s=migrate(s);if(s)s.version='0.8.2';return s};
 
 // ---- Boss constructor compatibility ----
 // v6/v7 boss code expects makeBoss(), but the original combat runtime only exposes spawn().
