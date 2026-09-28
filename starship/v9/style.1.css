@@ -1,0 +1,25 @@
+/* LoE: Starship Survivor v0.9.1 Run Flow & Boss Presentation */
+body.combat .v9BossLabButton{display:none!important}
+#boss.v91BossHud{width:min(82vw,460px)!important;top:calc(112px + env(safe-area-inset-top))!important}
+#boss.v91BossHud small{font-size:6px!important;letter-spacing:.2em!important;color:#78909d!important}
+#boss.v91BossHud b{font-size:13px!important;letter-spacing:.13em!important}
+#boss.v91BossHud span{font-size:6px!important;margin:4px 0 7px!important}
+
+.v91BossVictory{position:fixed;inset:0;z-index:520;display:grid;place-items:center;padding:22px;background:rgba(1,5,9,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.v91VictoryCard{width:min(440px,100%);padding:20px 17px 17px;border:1px solid color-mix(in srgb,var(--accent,#67dfff) 55%,#29414d);border-radius:18px;background:linear-gradient(180deg,rgba(13,27,37,.92),rgba(4,11,17,.9));box-shadow:0 18px 70px #000b,0 0 36px color-mix(in srgb,var(--accent,#67dfff) 10%,transparent);text-align:center;color:#e9f4f8}
+.v91VictoryCard>small{display:block;color:var(--accent,#67dfff);font-size:7px;font-weight:800;letter-spacing:.22em;margin-bottom:8px}
+.v91VictoryCard h2{font-size:20px;line-height:1.15;letter-spacing:.1em;margin:0 0 9px;text-wrap:balance}
+.v91VictoryCard>p{margin:0 0 14px;color:#8299a6;font-size:8px;letter-spacing:.11em}.v91VictoryCard>p b{color:var(--accent,#67dfff)}
+.v91BossStatus{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 14px}.v91BossStatus span{display:grid;gap:3px;padding:9px 4px;border:1px solid #203946;border-radius:9px;background:#050e14;color:#698390;font-size:6px;letter-spacing:.12em}.v91BossStatus b{font-size:9px;color:#d9eaf1}
+.v91VictoryCard>.btn{width:100%;min-height:48px;margin-top:8px}.v91VictoryCard>.btn small{display:inline;margin-left:6px;color:inherit}
+
+.v91Report{position:fixed;inset:0;z-index:900;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 50% 35%,rgba(17,37,49,.42),transparent 48%),rgba(1,4,8,.97);color:#dcecf3;overflow:hidden}
+.v91Report:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.16;background:repeating-linear-gradient(180deg,transparent 0 3px,#9cdcf408 4px 5px);animation:v91scan 8s linear infinite}
+@keyframes v91scan{from{transform:translateY(-18px)}to{transform:translateY(18px)}}
+.v91Terminal{position:relative;z-index:1;width:min(460px,100%);border:1px solid #294958;border-radius:16px;background:rgba(4,12,18,.88);box-shadow:0 24px 90px #000;padding:18px;overflow:hidden}
+.v91Terminal:before{content:"";position:absolute;left:0;top:0;width:3px;height:100%;background:#ff6577;box-shadow:0 0 18px #ff657777}.v91Report.success .v91Terminal:before{background:#67dfff;box-shadow:0 0 18px #67dfff77}
+.v91Terminal header{border-bottom:1px solid #19313d;padding:2px 3px 14px;margin-bottom:7px}.v91Terminal header small{display:block;color:#718b98;font-size:7px;letter-spacing:.23em}.v91Terminal h2{margin:6px 0 3px;font-size:25px;letter-spacing:.15em;color:#ff7a89}.v91Report.success .v91Terminal h2{color:#73e1ff}.v91Terminal header span{font-size:7px;letter-spacing:.15em;color:#91a7b2}
+.v91TerminalLines{min-height:190px;padding:8px 3px}.v91TerminalLines>div{display:flex;justify-content:space-between;gap:20px;border-bottom:1px dotted #17303c;padding:9px 0;opacity:0;transform:translateX(-8px);transition:.2s ease}.v91TerminalLines>div.show{opacity:1;transform:none}.v91TerminalLines span{font-size:7px;letter-spacing:.14em;color:#68828f}.v91TerminalLines b{font:700 10px ui-monospace,SFMono-Regular,Menlo,monospace;color:#d8e8ee;letter-spacing:.04em}
+.v91Terminal footer{display:flex;align-items:center;gap:8px;opacity:0;margin:5px 2px 14px;color:#6f8792;font:700 7px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em;transition:.25s}.v91Terminal footer.show{opacity:1}.v91Terminal footer i{width:7px;height:7px;border-radius:50%;background:#ff6577;box-shadow:0 0 10px #ff6577}.v91Report.success .v91Terminal footer i{background:#67dfff;box-shadow:0 0 10px #67dfff}.v91Terminal>.btn{width:100%;min-height:48px}.v91Terminal>.btn:disabled{opacity:.25}
+
+@media(max-height:700px){#boss.v91BossHud{top:calc(92px + env(safe-area-inset-top))!important}.v91TerminalLines{min-height:150px}.v91TerminalLines>div{padding:6px 0}}
