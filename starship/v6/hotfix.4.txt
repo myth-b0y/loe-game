@@ -1,0 +1,45 @@
+(()=>{
+const R=window.SR;
+if(!R||!R.Game)throw new Error('V6.4 base runtime missing');
+R.VERSION='0.6.4';
+const GP=R.Game.prototype;
+
+// v0.6.4: restore the ally projectile helper expected by the v5 drone/support update loop.
+// Keeping this on the Game prototype means every existing drone/support path can use it safely.
+GP.fireAlly=function(target,x,y,damage,aoe=0,ion=false,color='#7fe3ff'){
+  if(!target||!Number.isFinite(+x)||!Number.isFinite(+y))return false;
+  if(this.validTarget&&!this.validTarget(target))return false;
+  const d=Math.max(.1,Number.isFinite(+damage)?+damage:1);
+  const blast=Math.max(0,Number.isFinite(+aoe)?+aoe:0);
+  const dx=(Number(target.x)||0)-x,dy=(Number(target.y)||0)-y,dist=Math.max(1,Math.hypot(dx,dy));
+  const speed=ion?560:500;
+  this.shots=this.shots||[];
+  this.shots.push({
+    x,y,
+    vx:dx/dist*speed,vy:dy/dist*speed,
+    damage:d,
+    life:Math.max(.18,dist/speed+.18),
+    pierce:0,
+    aoe:blast,
+    color:typeof color==='string'?color:(ion?'#89aaff':'#7fe3ff'),
+    homing:false,
+    target,
+    family:ion?'ion-ally':'ally',
+    ion:!!ion,
+    chain:0,
+    ally:true
+  });
+  return true;
+};
+
+// A recovered frame should never machine-gun audio because the same exception repeats.
+const priorFault=GP._showRuntimeFault;
+GP._showRuntimeFault=function(err){
+  const msg=String(err?.message||err||'Unknown combat fault');
+  const now=performance.now();
+  if(this._lastFaultMessage===msg&&now-(this._lastFaultAt||0)<700)return;
+  this._lastFaultMessage=msg;this._lastFaultAt=now;
+  if(Array.isArray(this.weaponCd))for(let i=0;i<this.weaponCd.length;i++)this.weaponCd[i]=Math.max(.12,Number(this.weaponCd[i])||0);
+  if(priorFault)priorFault.call(this,err);
+};
+})();
