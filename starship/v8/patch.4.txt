@@ -1,0 +1,35 @@
+pot(dx,dy)||1,min=a.r+44;if(d<min){a.x=this.cx+dx/d*min;a.y=this.cy+dy/d*min;const dot=a.vx*dx/d+a.vy*dy/d;if(dot<0){a.vx-=2*dot*dx/d;a.vy-=2*dot*dy/d}}
+      for(let j=i+1;j<rocks.length;j++){const b=rocks[j],dx2=b.x-a.x,dy2=b.y-a.y,d2=Math.hypot(dx2,dy2)||1,min2=a.r+b.r+2;if(d2<min2){const nx=dx2/d2,ny=dy2/d2,over=min2-d2;a.x-=nx*over*.5;a.y-=ny*over*.5;b.x+=nx*over*.5;b.y+=ny*over*.5;const rel=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(rel<0){const imp=-rel*.88;a.vx-=imp*nx;a.vy-=imp*ny;b.vx+=imp*nx;b.vy+=imp*ny}}}
+    }
+    if(rocks.length===0)this._v8FinishEncounter();
+  }else if(e.type==='boss'){
+    this.active=true;this.count=999;
+    if(e.victoryResolved&&e.traderResolved)this._v8FinishEncounter();
+  }
+};
+
+// Boss completion is transactional: boss death -> victory choice -> optional trader -> next wave.
+const priorBossVictory=GP.showBossVictory;
+if(priorBossVictory)GP.showBossVictory=function(){priorBossVictory.call(this);const o=$('#bossVictory');if(!o)return;for(const b of o.querySelectorAll('button'))b.addEventListener('click',()=>setTimeout(()=>{if(!document.body.contains(o)&&this._v8Encounter?.type==='boss'){this._v8Encounter.victoryResolved=true;if(this.wave%20!==0)this._v8Encounter.traderResolved=true}},40),{once:true})};
+const priorTrader=GP.showEngineerTrader;
+if(priorTrader)GP.showEngineerTrader=function(){priorTrader.call(this);const o=$('#engineerTrader');if(!o){if(this._v8Encounter?.type==='boss')this._v8Encounter.traderResolved=true;return}for(const b of o.querySelectorAll('button'))b.addEventListener('click',()=>setTimeout(()=>{if(!document.body.contains(o)&&this._v8Encounter?.type==='boss')this._v8Encounter.traderResolved=true},40),{once:true})};
+
+// Faults persist long enough to diagnose and never let a boss silently advance.
+const priorFault=GP._showRuntimeFault;
+GP._showRuntimeFault=function(err){const msg=String(err?.message||err||'Unknown combat fault');this.lastFault=msg;if(this._v8Encounter?.type==='boss'){this._bossFaulted=true;this.paused=true;this.active=true;this.count=999}priorFault?.call(this,err);let n=$('#runtimeFault');if(!n){n=E('div');n.id='runtimeFault';document.body.append(n)}n.textContent=`COMBAT FAULT · ${msg.slice(0,150)}`;clearTimeout(this._faultTimer);if(this._v8Encounter?.type!=='boss')this._faultTimer=setTimeout(()=>n?.remove(),15000)};
+const priorPause=GP.openPauseMenu;
+if(priorPause)GP.openPauseMenu=function(){priorPause.call(this);const card=$('#pauseMenu .pauseCard');if(card&&this.lastFault&&!card.querySelector('.v8FaultLog'))card.append(E('div','v8FaultLog',`<small>LAST COMBAT FAULT</small><b>${String(this.lastFault).slice(0,180)}</b>`))};
+
+// ---------- WEAPON / SHIELD / TACTICAL BALANCE ----------
+const priorWeapons=GP.weapons;
+if(priorWeapons)GP.weapons=function(dt){const st=R.shipStats(this.s),od=this.mods.damage,or=this.mods.rate;this.mods.damage*=st.reactor;this.mods.rate*=st.fireRate;try{return priorWeapons.call(this,dt)}finally{this.mods.damage=od;this.mods.rate=or}};
+const priorInit=GP.initShip;
+GP.initShip=function(){priorInit.call(this);const st=R.shipStats(this.s);this.maxHp=st.hull;this.hp=this.maxHp;this.maxShield=st.shield;this.shield=this.maxShield;this.permaArmor=st.armor;this.engineBonus=st.engines;this.reactorWeaponBonus=1;this.reactorTacticalBonus=st.tactical;this.mods.shieldRegen=(this.mods.shieldRegen||1)*st.shieldRecharge;this.mods.shieldDelay=(this.mods.shieldDelay||1)*st.shieldDelay;};
+const priorTac=GP.useTactical;
+if(priorTac)GP.useTactical=function(i){const a=R.TACTICAL?.find(q=>q.id===(this.s.tactical||[])[i]),od=this.mods.damage,oa=this.mods.aoe,re=this.s.systems?.reactor||0;this.mods.damage*=1.35+re*.06;this.mods.aoe*=1.18;let out;try{out=priorTac.call(this,i)}finally{this.mods.damage=od;this.mods.aoe=oa}const nm=(a?.name||'').toLowerCase();if(/shield burst/.test(nm)){this.shield=Math.min(this.maxShield,this.shield+this.maxShield*(.28+re*.025));this.invuln=Math.max(this.invuln||0,1.0+re*.08)}if(/ion bomb|emp/.test(nm))for(const e of this.en||[]){if(e.shield!=null)e.shield=Math.max(0,e.shield-(e.maxShield||e.shield||1)*(.45+re*.035));e.cd=Math.max(e.cd||0,1.3+re*.08)}return out};
+
+// AUTO can be toggled at any point; turning it on during a card choice immediately takes over.
+const oldAutoChoose=GP.autoChoose;
+GP.autoChoose=function(){if(!this.autoMode)return;return oldAutoChoose?.call(this)};
+
+})();
