@@ -1,5 +1,5 @@
 (async()=>{
-  const V='6.2';
+  const V='6.3';
   const base='./v5/',patch='./v6/';
   const text=async url=>{const r=await fetch(url+'?v='+V,{cache:'no-store'});if(!r.ok)throw new Error('LOAD '+url);return r.text()};
   const join=async(root,name,count)=>{let out='';for(let i=0;i<count;i++)out+=await text(root+name+'.'+i+'.txt');return out};
@@ -14,6 +14,8 @@
     (0,eval)(await text(patch+'hotfix.0.txt'));
     const v62Style=document.createElement('style');v62Style.textContent=await text(patch+'style.2.css');document.head.append(v62Style);
     (0,eval)(await join(patch,'hotfix.2',5));
+    const v63Style=document.createElement('style');v63Style.textContent=await text(patch+'style.3.css');document.head.append(v63Style);
+    (0,eval)(await text(patch+'hotfix.3.txt'));
     if(document.readyState!=='loading'&&window.SR?.App&&!window.SR.app)window.SR.app=new window.SR.App();
-  }catch(e){console.error(e);document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v0.6.2 failed to load. Refresh once. If it persists, report LOAD ERROR V6.2.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>'}
+  }catch(e){console.error(e);document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v0.6.3 failed to load. Refresh once. If it persists, report LOAD ERROR V6.3.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>'}
 })();
