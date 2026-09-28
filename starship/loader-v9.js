@@ -1,5 +1,5 @@
 (async()=>{
-  const V='9.1';
+  const V='9.1.1';
   const base='./v5/',v6='./v6/',v7='./v7/',v8='./v8/',v9='./v9/';
   const text=async url=>{const r=await fetch(url+'?v='+V,{cache:'no-store'});if(!r.ok)throw new Error('LOAD '+url);return r.text()};
   const join=async(root,name,count)=>{let out='';for(let i=0;i<count;i++)out+=await text(root+name+'.'+i+'.txt');return out};
@@ -32,8 +32,9 @@
     (0,eval)(await text(v9+'patch.js'));
     const s91=document.createElement('style');s91.textContent=await text(v9+'style.1.css');document.head.append(s91);
     (0,eval)(await text(v9+'hotfix.1.js'));
+    (0,eval)(await text(v9+'hotfix.2.js'));
     window.SR.VERSION='0.9.1';
-    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);try{window.SR.save(window.SR.app.s)}catch{}}
+    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);window.SR.app.s.version='0.9.1';try{window.SR.save(window.SR.app.s)}catch{}}
     if(document.readyState!=='loading'&&window.SR?.App&&!window.SR.app)window.SR.app=new window.SR.App();
   }catch(e){console.error(e);document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v0.9.1 failed to load. Refresh once. If it persists, report LOAD ERROR V9.1.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>'}
 })();
