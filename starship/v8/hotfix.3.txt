@@ -1,0 +1,117 @@
+(()=>{
+'use strict';
+const R=window.SR;if(!R?.App||!R?.Game)return;
+R.VERSION='0.8.3';
+const AP=R.App.prototype,GP=R.Game.prototype,$=s=>document.querySelector(s);
+
+// ---------- MAIN MENU PRESENTATION ----------
+const priorMain=AP.main;
+if(priorMain)AP.main=function(...args){
+  const out=priorMain.apply(this,args);
+  requestAnimationFrame(()=>{
+    document.body.classList.add('v83Main');
+    const top=$('.top');if(top)top.remove();
+    const title=[...document.querySelectorAll('h1,h2,b,strong')].find(n=>/STARSHIP\s*SURVIVOR/i.test((n.textContent||'').trim()));
+    if(title)title.classList.add('v83MainTitle');
+    const marks=[...document.querySelectorAll('div,span,i,b,strong')].filter(n=>n.children.length===0&&(n.textContent||'').trim()==='◆');
+    if(marks.length){
+      const mark=marks.sort((a,b)=>(parseFloat(getComputedStyle(b).fontSize)||0)-(parseFloat(getComputedStyle(a).fontSize)||0))[0];
+      if(mark&&!mark.closest('.top')){
+        const cv=document.createElement('canvas');cv.className='v83MainShip';cv.width=180;cv.height=145;mark.replaceWith(cv);
+        const x=cv.getContext('2d'),s=this.s||R.getSlot?.(R.loadAll?.().last||1),mounts=(s?.weaponMounts||s?.weapons||['weapon.autocannon','weapon.pulse']).filter(Boolean),tier=s?.hull||0;
+        x.clearRect(0,0,cv.width,cv.height);R.drawShip?.(x,cv.width/2,cv.height/2+4,1.05,mounts,tier,true,{drones:[],supports:[]});
+      }
+    }
+  });
+  return out;
+};
+const priorStation=AP.station;
+if(priorStation)AP.station=function(...args){document.body.classList.remove('v83Main');return priorStation.apply(this,args)};
+
+// ---------- R&D OWNS DRONE BAY / HANGAR ----------
+R.RD_TRACKS.drones={name:'Drone Development',icon:'◇',max:5,desc:'Commission the Drone Bay first, then develop chassis and expand command capacity.',cost:l=>750+850*l,unlocks:['Drone Bay installation','Striker & Guardian chassis','Ion & Repair chassis','Expanded Drone Control · +1 capacity','Bomber & Shield chassis · +1 capacity']};
+R.RD_TRACKS.fleet={name:'Flight Development',icon:'▷',max:4,desc:'Commission the Hangar first, then develop support craft and expand flight-control capacity.',cost:l=>1200+1550*l,unlocks:['Hangar installation','Interceptor & Heavy Fighter','Bomber & EW Craft · +1 capacity','Rescue Cutter & Escort Gunship']};
+for(const d of R.DRONES||[]){if(['drone.striker','drone.guardian'].includes(d.id))d.rd=2;else if(['drone.ion','drone.repair'].includes(d.id))d.rd=3;else d.rd=5;}
+for(const s of R.SUPPORTS||[]){if(['support.interceptor','support.fighter'].includes(s.id))s.rd=2;else if(['support.bomber','support.ew'].includes(s.id))s.rd=3;else s.rd=4;}
+const priorMilestone=R.applyResearchMilestone;
+R.applyResearchMilestone=(s,track,level)=>{
+  priorMilestone?.(s,track,level);
+  if(track==='drones'){
+    if(level>=1)s.systems.droneBay=Math.max(1,s.systems.droneBay||0);
+    if(level>=4)s.systems.droneBay=Math.max(2,s.systems.droneBay||0);
+    if(level>=5)s.systems.droneBay=Math.max(3,s.systems.droneBay||0);
+  }
+  if(track==='fleet'){
+    if(level>=1)s.systems.hangar=Math.max(1,s.systems.hangar||0);
+    if(level>=3)s.systems.hangar=Math.max(2,s.systems.hangar||0);
+  }
+};
+const priorMigrate=R.migrate;
+R.migrate=s=>{s=priorMigrate(s);if(!s)return s;if((s.rd?.drones||0)>=1)s.systems.droneBay=Math.max(1,s.systems.droneBay||0);if((s.rd?.drones||0)>=4)s.systems.droneBay=Math.max(2,s.systems.droneBay||0);if((s.rd?.drones||0)>=5)s.systems.droneBay=Math.max(3,s.systems.droneBay||0);if((s.rd?.fleet||0)>=1)s.systems.hangar=Math.max(1,s.systems.hangar||0);if((s.rd?.fleet||0)>=3)s.systems.hangar=Math.max(2,s.systems.hangar||0);s.version='0.8.3';return s;};
+const priorSystems=AP.tab_systems;
+AP.tab_systems=function(c){priorSystems.call(this,c);for(const p of [...c.querySelectorAll('.panel')]){const name=(p.querySelector('.gearBody>b')?.textContent||'').trim();if(name==='Drone Bay'||name==='Hangar')p.remove();}};
+AP.tab_upgrades=AP.tab_systems;
+
+// ---------- WAVE HUD ----------
+GP.v83SetWaveHUD=function(wave,sector,label){
+  const el=$('#wave');if(!el)return;const name=label||(sector?.kind==='void'?'VOID':sector?.kind==='pirate'?'PIRATES':sector?.name)||'UNKNOWN';const color=sector?.kind==='void'?(sector.accent||'#b875ff'):(sector?.color||'#a9dff0');
+  el.classList.add('v83Wave');el.style.setProperty('--waveColor',color);el.innerHTML=`<strong>WAVE ${wave}</strong><span>${name}</span>`;
+};
+
+// ---------- SYSTEM WARNING OVERLAY ----------
+GP.v83Warning=function({kicker='SYSTEM WARNING',title='',sub='',color='#8fdfff',countdown=0}={},done){
+  document.querySelectorAll('.v83Warning,.v8Announce').forEach(n=>n.remove());
+  const o=document.createElement('div');o.className='v83Warning';o.style.setProperty('--warnColor',color);o.innerHTML=`<div class="v83WarnCore"><small>${kicker}</small><b>${title}</b>${sub?`<span>${sub}</span>`:''}${countdown?'<strong class="v83Count"></strong>':''}</div>`;document.body.append(o);
+  requestAnimationFrame(()=>o.classList.add('in'));
+  let finished=false;const finish=()=>{if(finished)return;finished=true;o.classList.add('out');setTimeout(()=>{o.remove();done?.()},900)};
+  if(countdown){const c=o.querySelector('.v83Count');let n=countdown;c.textContent=n;const tick=()=>{n--;if(n>0){c.classList.remove('pulse');void c.offsetWidth;c.textContent=n;c.classList.add('pulse');setTimeout(tick,700)}else{c.classList.remove('pulse');void c.offsetWidth;c.textContent='ENGAGE';c.classList.add('pulse');setTimeout(finish,650)}};setTimeout(tick,900)}
+  else setTimeout(finish,1850);
+};
+GP.announce=function(kicker,title,sub='',kind='normal',done){
+  const sector=this.currentSector,color=kind==='resource'?'#8fc7d9':sector?.kind==='void'?(sector.accent||'#b875ff'):(sector?.color||'#8fdfff');
+  const sys=kind==='void'?'SYSTEM // ANOMALY':kind==='warning'?'SYSTEM // WARNING':kind==='resource'?'SENSOR // CONTACT':'NAV // CONTACT';
+  this.v83Warning({kicker:sys,title,sub,color},done);
+};
+
+// ---------- RESOURCE FIELD: WARNING FIRST, THEN ROCKS ----------
+GP._v8BeginAsteroids=function(wave,sector){
+  this._v8Encounter={type:'asteroid-intro',wave,sector,complete:false};this.en=[];this.bad=[];this.tele=[];this.rocks=[];this.active=true;this.count=999;this.paused=true;this.v83SetWaveHUD(wave,sector,'RESOURCE FIELD');
+  this.v83Warning({kicker:'SENSOR // RESOURCE CONTACT',title:'ASTEROID FIELD',sub:'SALVAGE SIGNATURES DETECTED',color:'#8fc7d9'},()=>{
+    this.paused=false;this._v8Encounter={type:'asteroid',wave,sector,complete:false};this.en=[];this.bad=[];this.tele=[];this.rocks=[];
+    const count=4+Math.min(3,Math.floor(wave/24)),cx=this.cx??this.w/2,cy=this.cy??this.hgt*.48;let guard=0;
+    while(this.rocks.length<count&&guard++<260){const size=Math.random()<.3?3:2,r=size===3?34+Math.random()*6:23+Math.random()*5,x=62+r+Math.random()*Math.max(20,this.w-124-r*2),y=112+r+Math.random()*Math.max(30,this.hgt-230-r*2);if(Math.hypot(x-cx,y-cy)<r+105)continue;if(this.rocks.some(q=>Math.hypot(q.x-x,q.y-y)<q.r+r+48))continue;const rock=this._v8MakeRock(size,Math.random()<.2,x,y);rock.vx=(Math.random()-.5)*32;rock.vy=(Math.random()-.5)*26;this.rocks.push(rock)}
+    while(this.rocks.length<count){const i=this.rocks.length,x=72+(i%2)*(this.w-144),y=145+Math.floor(i/2)*110;this.rocks.push(this._v8MakeRock(2,false,x,y))}
+    this.active=true;this.count=999;
+  });
+};
+
+// ---------- BOSS: BUILD SAFELY, USE THE WARNING AS THE COUNTDOWN ----------
+const priorStartSectorBoss=GP.startSectorBoss;
+GP.startSectorBoss=function(...args){const out=priorStartSectorBoss.apply(this,args);if(this.boss){this.bossPreview=this.boss;this.boss.x=this.w/2;this.boss.y=-90;}const bi=$('#bossIntro');if(bi){bi.className='';bi.innerHTML='';}return out;};
+GP._v8BeginBoss=function(wave,sector){
+  this._v8Encounter={type:'boss',wave,sector,complete:false,victoryResolved:false,traderResolved:wave%20!==0};this.en=[];this.rocks=[];this.bad=[];this.tele=[];this.active=true;this.count=999;this.paused=true;this.v83SetWaveHUD(wave,sector);
+  try{this.startSectorBoss();}catch(err){this._showRuntimeFault?.(err);return;}
+  this.paused=true;if(this.bossState)this.bossState.stage='warning';const type=this.boss?.type||{},title=type.name||`${sector?.name||'UNKNOWN'} COMMAND SHIP`,color=sector?.kind==='void'?(sector.accent||'#b875ff'):(sector?.color||'#ff8797');
+  this.v83Warning({kicker:sector?.kind==='void'?'SYSTEM // ANOMALY WARNING':'SYSTEM // BOSS WARNING',title,sub:`WAVE ${wave} · MANEUVERING AUTHORIZED`,color,countdown:3},()=>{
+    try{this.paused=false;this.startBossFight();this.bossPreview=null;const bi=$('#bossIntro');if(bi){bi.className='';bi.innerHTML='';}}catch(err){this._showRuntimeFault?.(err)}
+  });
+};
+
+// Keep boss-preview compatibility even if a legacy frame tries to animate the preview.
+const priorBossUpdate=GP.bossUpdate;
+if(priorBossUpdate)GP.bossUpdate=function(dt){if(this.bossState&&!this.bossPreview&&this.bossState.stage!=='fight'&&this.boss)this.bossPreview=this.boss;return priorBossUpdate.call(this,dt)};
+
+// More targets per wave, but groups stay paced instead of dumping at once.
+GP._v8BeginCombat=function(wave,sector){
+  const groups=Math.min(8,4+Math.floor(wave/7)),base=Math.min(7,3+Math.floor(wave/10));
+  const queue=Array.from({length:groups},(_,i)=>Math.max(3,base+((wave+i)%2)));
+  this._v8Encounter={type:'combat',wave,sector,queue,groupsSpawned:0,queueDone:false,complete:false,nextSpawn:0,aliveCap:Math.min(18,8+Math.floor(wave/6))};
+  this.en=[];this.rocks=[];this.bad=[];this.tele=[];this.active=true;this.count=999;this.v83SetWaveHUD(wave,sector);this._v8SpawnGroup(true);
+};
+const priorSpawnWave=GP.spawnWave;
+GP.spawnWave=function(...args){const out=priorSpawnWave.apply(this,args);const e=this._v8Encounter;if(e?.wave)this.v83SetWaveHUD(e.wave,e.sector,e.type==='asteroid'||e.type==='asteroid-intro'?'RESOURCE FIELD':null);else if(this.wave)this.v83SetWaveHUD(this.wave,this.currentSector);return out;};
+
+// Combat screen owns its own chrome.
+const priorBuild=GP.build;
+GP.build=function(...args){document.body.classList.remove('v83Main');return priorBuild.apply(this,args)};
+})();
