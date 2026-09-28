@@ -1,0 +1,14 @@
+/* v0.9.8 acceptance stabilization */
+
+/* Level belongs to the run stats, not the global chrome. */
+#bars>#v98Level.v98LevelInline{position:absolute;z-index:2;left:0;bottom:100%;top:auto;transform:none;margin:0 0 9px 2px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;color:#b8d2dc;font:800 10px/1 system-ui,sans-serif;letter-spacing:.18em;white-space:nowrap;pointer-events:none}
+
+/* Scenario injector lives inside the existing Settings grammar. */
+.v981ScenarioPanel{align-items:flex-start!important;gap:14px!important}
+.v981ScenarioControls{display:grid;grid-template-columns:1fr;gap:8px;min-width:min(230px,42vw)}
+.v981ScenarioControls .v93Action{width:100%;min-height:38px}
+.v981ScenarioControls label{display:grid;grid-template-columns:1fr 82px;align-items:center;gap:10px;border:1px solid rgba(128,202,224,.13);border-radius:10px;padding:7px 8px;background:rgba(105,189,214,.045)}
+.v981ScenarioControls label span{color:#7897a3;font:750 8px/1 system-ui,sans-serif;letter-spacing:.13em}
+.v981ScenarioControls input{width:82px;min-height:34px;border:1px solid rgba(135,211,234,.20);border-radius:8px;background:#071219;color:#e9faff;text-align:center;font:800 12px/1 system-ui,sans-serif;outline:none}
+
+@media(max-width:560px){.v981ScenarioPanel{display:block!important}.v981ScenarioControls{margin-top:13px;min-width:0;width:100%;grid-template-columns:1fr 1fr}.v981ScenarioControls label{grid-column:1/-1}.v981ScenarioControls [data-eng]{grid-column:1/-1}}
