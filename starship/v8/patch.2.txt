@@ -1,0 +1,49 @@
+)}</small>`,()=>{const r=R.queueResearch(this.s,key);if(!r.ok)return this.deny(r.msg);R.save(this.s);this.station('research')},'btn small primary');if(full)b.disabled=true;row.append(b)}
+    c.append(row);
+  }
+  clearInterval(this._rdInterval);this._rdInterval=setInterval(()=>{if(!document.body.contains(active)){clearInterval(this._rdInterval);return}const done=R.processResearch?.(this.s);if(done){R.save(this.s);this.toast?.('RESEARCH COMPLETE');this.station('research');return}render()},500);
+};
+
+// ---------- LIVE STATION DATAPAD / SHIP SCREEN ----------
+AP.tab_ship=function(c){
+  this.s=R.migrate(this.s);c.className+=' commandDeck v8CommandDeck';
+  const s=this.s,h=R.HULLS[s.hull],st=R.shipStats(s),rec=s.records||{},mounts=(s.weaponMounts||s.weapons||[]).filter(Boolean),dCap=R.droneCapacity(s);
+  const hero=E('section','v8ShipHero');hero.innerHTML=`<div class="v8Identity"><button class="renameShip" aria-label="Rename ship">✎</button><small>DOCKED FLAGSHIP · ${h.name.toUpperCase()}</small><h1>${s.shipName}</h1></div><div class="v8Dock"><canvas id="ship" width="720" height="360"></canvas><div class="v8Scan"></div></div>`;c.append(hero);hero.querySelector('.renameShip').onclick=()=>this.v7RenameShip?.();
+  const assigned=(s.crew||[]).filter(x=>x.assigned).length,cap=Math.max(1,this.weaponCapacity?this.weaponCapacity():h.weapons);
+  const rows=[
+    ['♥','HULL',st.hull,Math.round(h.hp*1.75),'STRUCTURE'],['⬡','SHIELD',st.shield,Math.round(h.shield*1.85),'ARRAY'],
+    ['⚡','REACTOR',Math.round(((s.systems.reactor||0)/6)*100),100,'OUTPUT'],['⊙','FIRE CTRL',Math.round(((s.systems.fireControl||0)/6)*100),100,'TARGETING'],
+    ['▰','ARMOR',Math.round(st.armor*100),22,'PLATING'],['»','ENGINES',Math.round(((s.systems.engines||0)/6)*100),100,'HANDLING'],
+    ['👥','CREW',assigned,s.quarters||h.crew,'ACTIVE'],['✦','WEAPONS',mounts.length,cap,'MOUNTS'],
+    ['◇','DRONES',(s.drones||s.equippedDrones||[]).length,Math.max(1,dCap),'CONTROL'],['▷','HANGAR',(s.supports||s.equippedSupports||[]).length,Math.max(1,s.systems.hangar||0),'CRAFT']
+  ];
+  const grid=E('section','v8DiagGrid');rows.forEach(([ic,n,v,m,sub])=>{const pct=clamp((Number(v)||0)/(Number(m)||1)*100,0,100);grid.append(E('div','v8Diag',`<i>${ic}</i><span><b>${n}</b><em>${v}/${m}</em><small>${sub}</small><u><s style="width:${pct}%"></s></u></span>`))});c.append(grid);
+  const records=E('section','v8Records');[['◈','BEST',rec.wave||0],['✕','SHIPS',fmt(rec.kills||0)],['◆','BOSSES',rec.bosses||0],['↻','RUNS',rec.runs||0]].forEach(x=>records.append(E('div','v8Record',`<i>${x[0]}</i><b>${x[2]}</b><small>${x[1]}</small>`)));c.append(records);
+  setTimeout(()=>this.v8StartShipDisplay?.(),0);
+};
+AP.v8StartShipDisplay=function(){
+  cancelAnimationFrame(this._v8ShipAnim||0);const cv=$('#ship');if(!cv)return;const x=cv.getContext('2d'),s=this.s,mounts=(s.weaponMounts||s.weapons||[]).filter(Boolean),drones=(s.drones||s.equippedDrones||[]).map(id=>R.DRONES.find(d=>d.id===id)).filter(Boolean),supports=(s.supports||s.equippedSupports||[]).map(id=>R.SUPPORTS.find(d=>d.id===id)).filter(Boolean),start=performance.now();
+  const drawUnit=(px,py,col,defensive=false)=>{x.save();x.translate(px,py);x.fillStyle=col;x.strokeStyle='#071018';x.lineWidth=2;if(defensive){x.beginPath();x.arc(0,0,6,0,Math.PI*2);x.fill();x.stroke();x.globalAlpha=.35;x.beginPath();x.arc(0,0,10,0,Math.PI*2);x.stroke();}else{x.beginPath();x.moveTo(0,-8);x.lineTo(6,6);x.lineTo(0,3);x.lineTo(-6,6);x.closePath();x.fill();x.stroke();}x.restore()};
+  const frame=now=>{if(!document.body.contains(cv))return;const t=(now-start)/1000,w=cv.width,h=cv.height,cx=w/2,cy=h*.52;x.clearRect(0,0,w,h);x.fillStyle='#03080d';x.fillRect(0,0,w,h);
+    // station dock structure
+    x.strokeStyle='#183442';x.lineWidth=3;for(const side of [-1,1]){const bx=cx+side*w*.34;x.beginPath();x.moveTo(bx,18);x.lineTo(bx,330);x.stroke();for(let y=48;y<330;y+=52){x.strokeStyle=(Math.floor(t*2+y/52)%2)?'#23495a':'#17313d';x.beginPath();x.moveTo(bx,y);x.lineTo(cx+side*w*.22,y+18);x.stroke();}}
+    x.strokeStyle='#102733';x.lineWidth=1;for(let y=250;y<360;y+=18){x.beginPath();x.moveTo(w*.12,y);x.lineTo(w*.88,y);x.stroke()}for(let i=0;i<10;i++){const px=w*.16+i*w*.075;x.beginPath();x.moveTo(cx,245);x.lineTo(px,360);x.stroke()}
+    for(let i=0;i<16;i++){const px=42+i*43,py=24+(i%3)*8;x.fillStyle=(Math.sin(t*3+i)>0?'#67dfff':'#254c5b');x.globalAlpha=.45;x.fillRect(px,py,3,3)}x.globalAlpha=1;
+    const glow=.22+.09*Math.sin(t*4);x.fillStyle=`rgba(91,225,255,${glow})`;x.beginPath();x.ellipse(cx,cy+70,42,25,0,0,Math.PI*2);x.fill();
+    R.drawShip?.(x,cx,cy,1.48,mounts,s.hull,true,{drones:[],supports:[]});
+    let defN=0,offN=0;for(const d of drones){const color=R.droneColor?.(d)||'#75d9ff';if(d.role==='defense'){const a=t*.9+(defN++/Math.max(1,drones.filter(z=>z.role==='defense').length))*Math.PI*2;drawUnit(cx+Math.cos(a)*82,cy+Math.sin(a)*56,color,true)}else{const a=t*.55+offN++*1.8,px=cx+Math.cos(a)*145+Math.sin(a*.7)*18,py=cy+Math.sin(a*1.25)*72;drawUnit(px,py,color,false)}}
+    supports.forEach((d,i)=>{const side=i%2?1:-1,row=i>>1,px=cx+side*(185+row*22),py=cy+58+row*26+Math.sin(t*1.3+i)*4;x.save();x.translate(px,py);x.strokeStyle='#d6e6ef';x.lineWidth=2;x.beginPath();x.moveTo(0,-10);x.lineTo(8,8);x.lineTo(-8,8);x.closePath();x.stroke();x.restore()});
+    x.strokeStyle='rgba(104,220,255,.16)';x.lineWidth=1;const sy=(t*38)%h;x.beginPath();x.moveTo(0,sy);x.lineTo(w,sy);x.stroke();
+    this._v8ShipAnim=requestAnimationFrame(frame);
+  };
+  this._v8ShipAnim=requestAnimationFrame(frame);
+};
+
+// ---------- COMBAT HUD / ANNOUNCEMENTS ----------
+const priorBuild=GP.build;
+GP.build=function(){
+  priorBuild.call(this);this._v8Encounter=null;this._v7WaveState=null;this._v7Asteroid=false;this._v8LastEncounterType=null;this.lastFault=null;
+  const deck=$('#runDeck');if(deck){deck.classList.add('v8Deck');deck.textContent='▤';}
+};
+GP.announce=function(kicker,title,sub='',kind='normal',done){
+  document.querySelectorAll('.v8Announce').forEach(n=>n.remov
