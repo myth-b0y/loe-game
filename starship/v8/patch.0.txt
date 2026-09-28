@@ -1,0 +1,85 @@
+(()=>{
+'use strict';
+const R=window.SR;
+if(!R||!R.App||!R.Game)throw new Error('V8 base runtime missing');
+R.VERSION='0.8.0';
+const AP=R.App.prototype, GP=R.Game.prototype;
+const $=s=>document.querySelector(s);
+const E=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+const B=(h,fn,c='btn')=>{const b=E('button',c,h);b.onclick=fn;return b};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fmt=n=>n<1000?Math.floor(n):n<1e6?(n/1000).toFixed(1)+'k':(n/1e6).toFixed(1)+'m';
+
+// ---------- PERMANENT PROGRESSION / MIGRATION ----------
+const priorMigrate=R.migrate;
+R.rdDuration=level=>[0,25,45,70,110,165,220][Math.max(0,Math.min(6,level|0))]||220;
+R.RD_TRACKS={
+  weapons:{name:'Weapons Lab',icon:'⊙',max:5,desc:'Researches new weapon families. Weapon performance itself is handled by Fire Control and Reactor output.',cost:l=>700+850*l,unlocks:['Railgun technology','Beam Lance, Plasma Mortar & Flak Battery','Ion Arc systems','Missile guidance','Torpedo systems']},
+  drones:{name:'Drone Development',icon:'◇',max:5,desc:'Build the bay first, then develop chassis and command capacity.',cost:l=>750+850*l,unlocks:['Drone Bay installation','Striker & Guardian chassis','Ion & Repair chassis','Expanded drone control +1','Bomber & Shield chassis +1 control']},
+  tactical:{name:'Tactical Lab',icon:'⚡',max:5,desc:'Develops increasingly powerful triggered combat systems.',cost:l=>800+950*l,unlocks:['Gravity Well & Reactor Vent','Missile Barrage & EMP','Drone Overdrive & Escort Assault','Emergency Repair & Target Lock','Broadside, Overcharge, Singularity & Artillery']},
+  fleet:{name:'Flight Development',icon:'▷',max:3,desc:'Develops support craft for ships with a physical hangar and available pilots.',cost:l=>1800+2200*l,unlocks:['Interceptor & Heavy Fighter','Bomber & EW Craft','Rescue Cutter & Escort Gunship']}
+};
+if(R.DRONES){
+  for(const d of R.DRONES){
+    if(['drone.striker','drone.guardian'].includes(d.id))d.rd=2;
+    else if(['drone.ion','drone.repair'].includes(d.id))d.rd=3;
+    else if(['drone.bomber','drone.shield'].includes(d.id))d.rd=5;
+  }
+}
+R.SYSTEMS=R.SYSTEMS||{};
+R.SYSTEMS.shield=Object.assign({},R.SYSTEMS.shield||{}, {name:'Shield Array',icon:'⬡',max:6,cost:l=>500+520*l,desc:'Improves shield capacity, recharge speed, and restart delay.',stat:l=>`${Math.round((1+l*.18)*100)}% capacity · +${Math.round(l*18)}% recharge`});
+R.SYSTEMS.reactor=Object.assign({},R.SYSTEMS.reactor||{}, {name:'Reactor',icon:'⚡',max:6,cost:l=>560+560*l,desc:'Feeds weapons and Tactical Systems. More output means stronger weapon efficiency and faster Tactical recharge.',stat:l=>`+${Math.round(l*4)}% weapon output · +${Math.round(l*13)}% Tactical efficiency`});
+R.SYSTEMS.fireControl={name:'Fire Control',icon:'⊙',max:6,cost:l=>620+620*l,desc:'Improves tracking, cycle efficiency, and weapon coordination across every mounted hardpoint.',stat:l=>`+${Math.round(l*6)}% weapon output · +${Math.round(l*3)}% cycle speed`};
+R.SYSTEMS.droneBay=Object.assign({},R.SYSTEMS.droneBay||{}, {name:'Drone Bay',icon:'◇',max:1,cost:()=>0,desc:'One-time physical drone facility. The bay is installed by Drone Development I; later research expands command capacity.',stat:l=>l?'INSTALLED':'RESEARCH REQUIRED'});
+
+R.droneCapacity=s=>{
+  if(!s?.systems?.droneBay)return 0;
+  const hull=R.HULLS?.[s.hull], hullCap=Math.max(1,hull?.droneCap||1);
+  return Math.min(hullCap,Math.max(1,s.systems.droneBay||1));
+};
+R.shipStats=s=>{
+  const h=R.HULLS[s.hull],sys=s.systems||{},fc=sys.fireControl||0,re=sys.reactor||0,sh=sys.shield||0;
+  return {
+    hull:Math.round(h.hp*(1+(sys.armor||0)*.045)),
+    shield:Math.round(h.shield*(1+sh*.18)),
+    shieldRecharge:1+sh*.18+re*.04,
+    shieldDelay:Math.max(.42,1-sh*.08),
+    reactor:1+re*.04+fc*.06,
+    fireRate:1+fc*.03,
+    tactical:1+re*.13,
+    engines:1+(sys.engines||0)*.07,
+    armor:(sys.armor||0)*.035
+  };
+};
+R.applyResearchMilestone=(s,track,level)=>{
+  if(track==='drones'){
+    if(level>=1)s.systems.droneBay=Math.max(1,s.systems.droneBay||0);
+    if(level>=4){s.droneControlBonus=Math.max(s.droneControlBonus||0,1);s.systems.droneBay=Math.max(2,s.systems.droneBay||0)}
+    if(level>=5){s.droneControlBonus=Math.max(s.droneControlBonus||0,2);s.systems.droneBay=Math.max(3,s.systems.droneBay||0)}
+  }
+};
+const priorProcessResearch=R.processResearch;
+if(priorProcessResearch)R.processResearch=s=>{
+  if(!s)return false;
+  const before=Object.assign({},s.rd||{}),changed=priorProcessResearch(s);
+  for(const [track,now] of Object.entries(s.rd||{}))for(let lvl=(before[track]||0)+1;lvl<=now;lvl++)R.applyResearchMilestone(s,track,lvl);
+  if(changed)s._v8ResearchNotice=true;
+  return changed;
+};
+R.migrate=s=>{
+  s=priorMigrate(s);if(!s)return s;
+  s.systems=Object.assign({shield:0,armor:0,reactor:0,engines:0,droneBay:0,hangar:0,fireControl:0},s.systems||{});
+  s.rd=Object.assign({weapons:0,drones:0,tactical:0,fleet:0},s.rd||{});
+  s.droneControlBonus=Math.max(0,s.droneControlBonus||0);
+  if((s.rd.drones||0)>=1)s.systems.droneBay=Math.max(1,s.systems.droneBay||0);
+  if((s.rd.drones||0)>=4){s.droneControlBonus=Math.max(1,s.droneControlBonus);s.systems.droneBay=Math.max(2,s.systems.droneBay||0)}
+  if((s.rd.drones||0)>=5){s.droneControlBonus=Math.max(2,s.droneControlBonus);s.systems.droneBay=Math.max(3,s.systems.droneBay||0)}
+  if(!s.shipName||/^UNNAMED/i.test(s.shipName))s.shipName='WAYFARER';
+  // Shorten legacy research timers while preserving approximate progress.
+  if(s.rdActive){
+    const target=s.rdActive.target||1,newDur=R.rdDuration(target),oldDur=Math.max(1,s.rdActive.duration||((s.rdActive.end-s.rdActive.start)/1000)||newDur);
+    if(oldDur>newDur*1.35){const now=Date.now(),progress=clamp((now-(s.rdActive.start||now))/(oldDur*1000),0,.95),remain=Math.max(3,newDur*(1-progress));s.rdActive.duration=newDur;s.rdActive.start=now-(newDur-remain)*1000;s.rdActive.end=now+remain*1000;}
+  }
+  for(const q of s.rdQueue||[])q.duration=R.rdDuration(q.target||1);
+  s.version='0.8.0';
+  
