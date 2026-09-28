@@ -1,5 +1,5 @@
 (async()=>{
-  const V='9.7.1';
+  const V='9.8.1';
   const base='./v5/',v6='./v6/',v7='./v7/',v8='./v8/',v9='./v9/';
   const text=async url=>{const r=await fetch(url+'?v='+V,{cache:'no-store'});if(!r.ok)throw new Error('LOAD '+url);return r.text()};
   const join=async(root,name,count)=>{let out='';for(let i=0;i<count;i++)out+=await text(root+name+'.'+i+'.txt');return out};
@@ -7,7 +7,7 @@
   try{
     const baseStyle=document.createElement('style');baseStyle.textContent=await ungzip(base,'style',1);document.head.append(baseStyle);
     (0,eval)(await join(base,'data',4));
-    window.SR.VERSION='0.9.7';
+    window.SR.VERSION='0.9.8';
     (0,eval)(await ungzip(base,'combat',3));
     (0,eval)(await ungzip(base,'ui',2));
     const s6=document.createElement('style');s6.textContent=await text(v6+'style.css');document.head.append(s6);
@@ -43,8 +43,11 @@
     const s96=document.createElement('style');s96.textContent=await text(v9+'style.5.css');document.head.append(s96);
     (0,eval)(await text(v9+'hotfix.7.js'));
     (0,eval)(await text(v9+'hotfix.8.js'));
-    window.SR.VERSION='0.9.7';
-    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);window.SR.app.s.version='0.9.7';try{window.SR.save(window.SR.app.s)}catch{}}
+    const s98=document.createElement('style');s98.textContent=await text(v9+'style.6.css');document.head.append(s98);
+    (0,eval)(await text(v9+'hotfix.9.js'));
+    (0,eval)(await text(v9+'hotfix.10.js'));
+    window.SR.VERSION='0.9.8';
+    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);window.SR.app.s.version='0.9.8';try{window.SR.save(window.SR.app.s)}catch{}}
     if(document.readyState!=='loading'&&window.SR?.App&&!window.SR.app)window.SR.app=new window.SR.App();
-  }catch(e){console.error(e);document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v0.9.7 failed to load. Refresh once. If it persists, report LOAD ERROR V9.7.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>'}
+  }catch(e){console.error(e);document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v0.9.8 failed to load. Refresh once. If it persists, report LOAD ERROR V9.8.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>'}
 })();
