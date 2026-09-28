@@ -1,0 +1,73 @@
+(()=>{
+  const R=window.SR=window.SR||{};
+  const pick=a=>a[Math.random()*a.length|0];
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const uid=(p='id')=>`${p}.${Date.now().toString(36)}.${Math.random().toString(36).slice(2,8)}`;
+  R.pick=pick; R.clamp=clamp; R.uid=uid;
+  R.GAME_NAME='LoE: Starship Survivor';
+  R.VERSION='0.5.0';
+
+  R.HULLS=[
+    ['Starfighter',2,2,1,220,90,0,0,0],
+    ['Heavy Fighter',3,3,1,340,130,1,0,900],
+    ['Gunship',4,4,2,520,190,2,0,2400],
+    ['Corvette',6,5,2,800,280,3,1,5200],
+    ['Light Frigate',9,7,3,1250,430,4,2,11000],
+    ['Frigate',12,9,4,1900,650,5,3,22000],
+    ['Heavy Frigate',16,12,4,2850,930,6,4,42000]
+  ].map((x,i)=>({id:'hull.'+i,name:x[0],crew:x[1],weapons:x[2],tactical:x[3],hp:x[4],shield:x[5],droneCap:x[6],supportCap:x[7],cost:x[8],tier:i}));
+
+  R.WEAPONS=[
+    {id:'weapon.autocannon',family:'autocannon',name:'Autocannon',icon:'»',color:'#ffb15f',damage:10,rate:7.2,range:520,cost:240,minHull:0,rd:0,desc:'Rapid kinetic fire that chews through nearby light craft.',kind:'rapid'},
+    {id:'weapon.pulse',family:'pulse',name:'Pulse Laser',icon:'━',color:'#62dcff',damage:15,rate:3.5,range:700,cost:300,minHull:0,rd:0,desc:'Accurate twin energy bursts with excellent tracking.',burst:2,kind:'burst'},
+    {id:'weapon.railgun',family:'railgun',name:'Railgun',icon:'→',color:'#ffffff',damage:96,rate:.58,range:1050,cost:650,minHull:1,rd:1,desc:'Slow magnetic slugs punch through several ships in a line.',pierce:4,kind:'pierce'},
+    {id:'weapon.beam',family:'beam',name:'Beam Lance',icon:'═',color:'#a6f7ff',damage:31,rate:1.3,range:880,cost:950,minHull:2,rd:2,desc:'A precise cutting lance that favors distant priority targets.',pierce:2,kind:'beam'},
+    {id:'weapon.plasma',family:'plasma',name:'Plasma Mortar',icon:'♨',color:'#ff6bd7',damage:62,rate:.82,range:670,cost:1200,minHull:2,rd:2,desc:'Lobs unstable plasma into clustered enemies for wide splash damage.',aoe:78,slow:true,kind:'mortar'},
+    {id:'weapon.flak',family:'flak',name:'Flak Battery',icon:'✹',color:'#ffe39b',damage:14,rate:2.15,range:400,cost:1100,minHull:2,rd:2,desc:'Fills close space with fragments and tears apart swarms and missiles.',aoe:32,scatter:5,pointDefense:true,kind:'flak'},
+    {id:'weapon.ion',family:'ion',name:'Ion Arc',icon:'⚡',color:'#89aaff',damage:20,rate:1.65,range:640,cost:1400,minHull:3,rd:3,desc:'Strips shields and chains electrical damage into nearby ships.',ion:true,chain:2,kind:'chain'},
+    {id:'weapon.missile',family:'missile',name:'Missile Rack',icon:'⌁',color:'#ff9d79',damage:50,rate:.9,range:1050,cost:1800,minHull:3,rd:4,desc:'Launches homing warheads that seek targets beyond gun range.',homing:true,aoe:60,kind:'homing'},
+    {id:'weapon.torpedo',family:'torpedo',name:'Torpedo Tube',icon:'◆',color:'#ff735d',damage:165,rate:.23,range:1250,cost:2800,minHull:4,rd:5,desc:'A slow hunter-killer warhead built for bosses and heavy hulls.',homing:true,aoe:112,slow:true,kind:'heavy'}
+  ];
+
+  const TACT=[
+    ['Ion Bomb','⚡',18,'Disables nearby electronics and strips enemy shields.',0],
+    ['Energy Nova','✹',20,'Blasts every nearby enemy with a radial energy shockwave.',0],
+    ['Blink Drive','◌',23,'Phases the flagship out of danger for a brief moment.',0],
+    ['Shield Burst','⬡',22,'Restores a large chunk of shield and grants brief protection.',0],
+    ['Gravity Well','◎',24,'Drags enemies together and slows them for follow-up fire.',1],
+    ['Reactor Vent','♨',25,'Dumps reactor heat outward as a damaging pulse.',1],
+    ['Missile Barrage','⌁',28,'Launches a sudden swarm of homing missiles.',2],
+    ['EMP','⌁',26,'Shuts down enemy shields and weapons for a short window.',2],
+    ['Drone Overdrive','◇',27,'Temporarily pushes all deployed drones beyond normal limits.',3],
+    ['Escort Assault','▷',29,'Orders support ships into an aggressive strike pattern.',3],
+    ['Emergency Repair','✚',31,'Repairs a large portion of damaged hull.',4],
+    ['Target Lock','⊙',24,'Focuses targeting systems for a burst of lethal accuracy.',4],
+    ['Broadside','≋',25,'Instantly cycles every mounted weapon battery.',5],
+    ['Reactor Overcharge','⚡',32,'Temporarily boosts ship output at dangerous reactor load.',5],
+    ['Singularity','●',38,'Compresses nearby enemies into a violent gravity event.',5],
+    ['Artillery Strike','✦',36,'Calls a heavy delayed strike across the battlespace.',5]
+  ];
+  R.TACTICAL=TACT.map((x,i)=>({id:'active.'+i,name:x[0],icon:x[1],cooldown:x[2],desc:x[3],rd:x[4],cost:i<4?450:700+i*130,type:i}));
+  R.ACTIVES=R.TACTICAL;
+
+  R.DRONES=[
+    {id:'drone.striker',name:'Striker Drone',icon:'◇',role:'offense',cost:700,minHull:1,rd:1,damage:11,rate:1.8,desc:'Leaves formation to harass nearby enemies, then returns to the flagship zone.'},
+    {id:'drone.guardian',name:'Guardian Drone',icon:'⬡',role:'defense',cost:800,minHull:1,rd:1,pd:.08,desc:'Orbits close and intercepts hostile projectiles before they reach the hull.'},
+    {id:'drone.ion',name:'Ion Drone',icon:'⚡',role:'offense',cost:1150,minHull:2,rd:2,damage:8,rate:1.25,ion:true,desc:'Roams near the ship and pressures enemy shields with ion bursts.'},
+    {id:'drone.repair',name:'Repair Drone',icon:'✚',role:'defense',cost:1300,minHull:2,rd:2,repair:.45,desc:'Stays close to the flagship and continuously repairs light hull damage.'},
+    {id:'drone.bomber',name:'Bomber Drone',icon:'◆',role:'offense',cost:1700,minHull:3,rd:3,damage:28,rate:.55,aoe:52,desc:'Makes short attack runs and drops compact explosive payloads.'},
+    {id:'drone.shield',name:'Shield Drone',icon:'◌',role:'defense',cost:1600,minHull:3,rd:3,shield:.008,desc:'Orbits the ship and feeds a small continuous charge into the shield grid.'}
+  ];
+
+  R.SUPPORTS=[
+    {id:'support.interceptor',name:'Interceptor',icon:'▷',cost:3200,minHull:3,rd:1,crewReq:1,damage:18,rate:1.55,desc:'Fast one-seat fighter that chases light enemies and missiles.'},
+    {id:'support.fighter',name:'Heavy Fighter',icon:'▶',cost:4700,minHull:3,rd:1,crewReq:1,damage:28,rate:1.1,desc:'A durable one-seat strike craft that stays close to the flagship.'},
+    {id:'support.bomber',name:'Bomber',icon:'◆',cost:6800,minHull:4,rd:2,crewReq:2,damage:72,rate:.42,aoe:75,desc:'Two-pilot attack craft built to punish carriers and boss subsystems.'},
+    {id:'support.ew',name:'EW Craft',icon:'◎',cost:7400,minHull:4,rd:2,crewReq:2,damage:12,rate:.9,ion:true,desc:'Two-pilot support craft that jams and ionizes hostile ships.'},
+    {id:'support.repair',name:'Rescue Cutter',icon:'✚',cost:8200,minHull:5,rd:3,crewReq:2,repair:.9,desc:'Two-pilot support ship that circles the flagship and performs heavy repairs.'},
+    {id:'support.gunship',name:'Escort Gunship',icon:'▰',cost:11000,minHull:5,rd:3,crewReq:2,damage:44,rate:1.0,desc:'Two-pilot escort with independent guns and enough armor to hold a flank.'}
+  ];
+
+  R.CREW_ROLES=[
+    {id:'pilot',name:'Pilot',icon:'✦',desc:'Flies the flagship or crews support craft.',specialties:['Ace','Interceptor','Bomber']},
+    {id:'gunner',name:'Gunner',ic

@@ -1,0 +1,74 @@
+(()=>{
+const R=window.SR;
+if(!R||!R.App||!R.Game)throw new Error('V6 base runtime missing');
+R.VERSION='0.6.0';
+R.RARITIES={common:{name:'COMMON',color:'#f3f6f8'},uncommon:{name:'UNCOMMON',color:'#76df8a'},rare:{name:'RARE',color:'#55a9ff'},epic:{name:'EPIC',color:'#f2d34f'},legendary:{name:'LEGENDARY',color:'#ff9d42'},mythic:{name:'MYTHIC',color:'#b875ff'},fractured:{name:'FRACTURED',color:'#ff596d'}};
+const $=s=>document.querySelector(s), el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+const btn=(h,fn,c='btn')=>{const b=el('button',c,h);b.onclick=fn;return b};
+const fmt=n=>n<1000?Math.floor(n):n<1e6?(n/1000).toFixed(1)+'k':(n/1e6).toFixed(1)+'m';
+const hash=s=>[...String(s)].reduce((a,c)=>(a*33+c.charCodeAt(0))>>>0,5381);
+for(const c of R.CARDS||[]){
+  if(c.rarity==='common')c.rarity=hash(c.id)%3===0?'uncommon':'common';
+  else if(c.rarity==='rare')c.rarity='rare';
+  else if(c.rarity==='epic')c.rarity='epic';
+  else if(c.rarity==='legendary')c.rarity=(['l2','l5'].includes(c.id)||/myth/i.test(c.name))?'mythic':'legendary';
+  else if(c.rarity==='cursed')c.rarity='fractured';
+}
+R.SECTOR_FACTIONS=[
+ {id:'aaru',name:"A'ARU",color:'#4ca8ff',accent:'#8ed5ff',style:'disciplined',desc:'Disciplined blue formations with shields and coordinated fire.'},
+ {id:'nevari',name:'NEVARI',color:'#66d68a',accent:'#b5f2c5',style:'balanced',desc:'Balanced green fleets with resilient formations and steady pressure.'},
+ {id:'rakkan',name:'RAKKAN',color:'#ff9d43',accent:'#ffd18c',style:'aggressive',desc:'Hard-charging orange fleets favoring kinetics, close pressure, and endurance.'},
+ {id:'elsari',name:'ELSARI',color:'#aa78ff',accent:'#d5bbff',style:'tech',desc:'Purple technical fleets using drones, ion systems, and precision fire.'},
+ {id:'olydran',name:'OLYDRAN',color:'#ecf5ff',accent:'#ffffff',style:'fortress',desc:'White defensive fleets built around heavy hulls and controlled lanes.'},
+ {id:'svarin',name:'SVARIN',color:'#f2d34f',accent:'#fff0a1',style:'mobile',desc:'Yellow high-tempo fleets that reposition quickly and attack in bursts.'}
+];
+const baseMigrate=R.migrate;
+R.migrate=s=>{
+  s=baseMigrate(s); if(!s)return s;
+  s.shipName=s.shipName||'UNNAMED VESSEL';
+  s.checkpoints=Array.isArray(s.checkpoints)?s.checkpoints:[1]; if(!s.checkpoints.includes(1))s.checkpoints.unshift(1);
+  s.weaponInventory=s.weaponInventory||{};
+  const old=Array.isArray(s.weaponMounts)?s.weaponMounts:(s.weapons||[]).slice();
+  for(const id of [...new Set([...(s.unlockedW||[]),...old])])s.weaponInventory[id]=Math.max(s.weaponInventory[id]||0,old.filter(x=>x===id).length||1);
+  s.weaponMounts=old.slice(0,R.HULLS[s.hull].weapons); while(s.weaponMounts.length<R.HULLS[s.hull].weapons)s.weaponMounts.push(null);
+  s.weapons=s.weaponMounts.slice();
+  return s;
+};
+const baseNew=R.newSave;
+R.newSave=i=>{const s=R.migrate(baseNew(i));s.shipName='UNNAMED VESSEL';s.checkpoints=[1];return s};
+
+// ---------- APP / STATION ----------
+const AP=R.App.prototype;
+const baseStation=AP.station;
+AP.station=function(t=this.tab){
+  const old=$('.screen'),same=t===this.tab,scroll=same&&old?old.scrollTop:0;
+  baseStation.call(this,t);
+  requestAnimationFrame(()=>{const n=$('.screen');if(n&&same)n.scrollTop=scroll});
+};
+AP.weaponCapacity=function(){return Math.min(R.HULLS[this.s.hull].weapons,1+(this.s.crew||[]).filter(x=>x.assigned&&(x.role==='gunner'||x.profession===1)).length)};
+AP.syncMounts=function(){this.s=R.migrate(this.s);this.s.weapons=this.s.weaponMounts.slice()};
+AP.tab_ship=function(c){
+  this.s=R.migrate(this.s); const h=R.HULLS[this.s.hull];
+  c.classList.add('shipPage');
+  const hero=el('div','shipDiag');
+  hero.innerHTML=`<div class="shipNameRow"><input id="shipName" maxlength="24" value="${String(this.s.shipName).replace(/"/g,'&quot;')}"><button id="saveShipName">✓</button></div><canvas id="ship" width="520" height="250"></canvas><small>${h.name.toUpperCase()} · FLAGSHIP</small>`;
+  c.append(hero);
+  hero.querySelector('#saveShipName').onclick=()=>{this.s.shipName=hero.querySelector('#shipName').value.trim()||'UNNAMED VESSEL';R.save(this.s);this.toast('SHIP NAME SAVED')};
+  setTimeout(()=>this.drawShipPreview(),0);
+  const assigned=(this.s.crew||[]).filter(x=>x.assigned).length;
+  const systems=this.s.systems||{};
+  const rows=[
+    ['♥','HULL',this.displayHp?this.displayHp():h.hp,h.hp*1.8],
+    ['⬡','SHIELD',this.displayShield?this.displayShield():h.shield,h.shield*1.8],
+    ['⚡','REACTOR',systems.reactor||0,6],['▰','ARMOR',systems.armor||0,6],
+    ['👥','CREW',assigned,this.s.quarters||h.crew],['⊙','WEAPONS',this.s.weaponMounts.filter(Boolean).length,this.weaponCapacity()],
+    ['◇','DRONES',(this.s.equippedDrones||[]).length,Math.max(1,systems.droneBay||0)],['▷','HANGAR',(this.s.equippedSupports||[]).length,Math.max(1,systems.hangar||0)]
+  ];
+  const dg=el('div','diagnostics');
+  rows.forEach(([ic,n,v,m])=>{const pct=Math.max(0,Math.min(100,(Number(v)||0)/(Number(m)||1)*100));dg.append(el('div','diagRow',`<i>${ic}</i><span><b>${n}</b><em>${v}/${m}</em><u><s style="width:${pct}%"></s></u></span>`))});
+  c.append(dg);
+  const rec=this.s.records||{},rg=el('div','recordsInline');
+  [['◈','BEST',rec.wave||0],['✕','KILLS',fmt(rec.kills||0)],['◆','BOSSES',rec.bosses||0],['↻','RUNS',rec.runs||0]].forEach(x=>rg.append(el('div','recordMini',`<i>${x[0]}</i><b>${x[2]}</b><small>${x[1]}</small>`)));
+  c.append(rg);
+};
+AP.drawShipPreview=function(){const cv=$('#ship');if(!cv)return;const x=cv.getContext('2d'),w=cv.width,h=cv.height;x.clearRect(0,0,w,h);for(let i=0;i<70;i++){x.fillStyle='rgba(255,255,255,.22)';x.fillRect(Math.random()*w,Math.random()*h,1,1)}R.drawShip?.(x,w/2,h/2,1.05,this.s.weapons,this.s.hull,true,{drones:this.s.equippedDrones||[],supports:this.s.equippedSupports||[]})};

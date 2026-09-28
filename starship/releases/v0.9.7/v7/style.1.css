@@ -1,0 +1,1 @@
+.commandScreen{overflow:hidden!important;padding-bottom:calc(84px + env(safe-area-inset-bottom))!important}.commandScreen>.nav{height:54px!important}.commandScreen>.content.commandDeck{height:calc(100% - 54px)!important;min-height:0!important}.commandScreen .commandHero{min-height:0!important}.commandScreen .shipStage{min-height:130px!important}

@@ -1,0 +1,69 @@
+(()=>{
+'use strict';
+const R=window.SR;if(!R?.App||!R?.Game)return;
+R.VERSION='0.8.2';
+const AP=R.App.prototype,GP=R.Game.prototype,$=s=>document.querySelector(s);
+const migrate=R.migrate;R.migrate=s=>{s=migrate(s);if(s)s.version='0.8.2';return s};
+
+// ---- Boss constructor compatibility ----
+// v6/v7 boss code expects makeBoss(), but the original combat runtime only exposes spawn().
+// Build the boss through the runtime's own spawn path, then hold it out of the active enemy list until the boss fight begins.
+if(typeof GP.makeBoss!=='function')GP.makeBoss=function(type){
+  const list=this.en||(this.en=[]),before=new Set(list);let boss=null;
+  try{const made=this.spawn?.(type,true,this.w/2,-110);if(made&&typeof made==='object')boss=made;}catch(err){console.warn('boss spawn fallback',err)}
+  if(!boss)boss=list.find(e=>!before.has(e))||null;
+  if(boss){const i=list.indexOf(boss);if(i>=0)list.splice(i,1)}
+  if(!boss){
+    const hp=Math.max(1,Number(type.hp)||28),shield=Math.max(0,Number(type.shield)||0);
+    boss={type:{...type},boss:true,x:this.w/2,y:-110,vx:0,vy:0,hp,max:hp,shield,maxShield:shield,damage:Number(type.damage)||2.6,speed:.55,size:64,cd:1,phase:1,dead:false,subsystems:[]};
+  }
+  boss.boss=true;boss.dead=false;boss.type={...(boss.type||{}),...type};boss.x=this.w/2;boss.y=-110;boss.vx=0;boss.vy=0;boss.phase=1;
+  boss.hp=Math.max(1,Number(boss.hp)||Number(type.hp)||28);boss.max=Math.max(boss.hp,Number(boss.max)||boss.hp);
+  boss.shield=Math.max(0,Number(boss.shield)||Number(type.shield)||0);boss.maxShield=Math.max(boss.shield,Number(boss.maxShield)||boss.shield);
+  boss.damage=Number(boss.damage)||Number(type.damage)||2.6;boss.speed=Number(boss.speed)||.55;boss.size=Math.max(58,Number(boss.size)||64);boss.cd=Number.isFinite(boss.cd)?boss.cd:1;
+  boss.subsystems=Array.isArray(boss.subsystems)?boss.subsystems:[];
+  return boss;
+};
+
+// ---- Denser waves, deliberately staggered ----
+GP._v8BeginCombat=function(wave,sector){
+  const groups=Math.min(7,3+Math.floor(wave/7));
+  const base=Math.min(6,3+Math.floor(wave/12));
+  const queue=Array.from({length:groups},(_,i)=>Math.max(2,base+((wave+i)%2)));
+  this._v8Encounter={type:'combat',wave,sector,queue,groupsSpawned:0,queueDone:false,complete:false,nextSpawn:0,aliveCap:Math.min(16,7+Math.floor(wave/6))};
+  this.en=[];this.rocks=[];this.bad=[];this.tele=[];this.active=true;this.count=999;this._v8SpawnGroup(true);
+};
+GP._v8SpawnGroup=function(force=false){
+  const e=this._v8Encounter;if(!e||e.type!=='combat'||!e.queue?.length)return;
+  if(!force&&(e.nextSpawn||0)>0)return;
+  const n=e.queue.shift();for(let i=0;i<n;i++){const type=this._v8SpawnType?.(e.sector);if(type)this.spawn(type)}
+  e.groupsSpawned=(e.groupsSpawned||0)+1;e.queueDone=e.queue.length===0;e.nextSpawn=2.5+Math.random()*1.5;this.active=true;this.count=999;
+};
+const pacedUpdate=GP.update;
+GP.update=function(dt){
+  pacedUpdate.call(this,dt);const e=this._v8Encounter;if(this.dead||this.paused||!e||e.type!=='combat'||e.complete||e.queueDone)return;
+  e.nextSpawn=Math.max(0,(e.nextSpawn||0)-dt);
+  if(e.nextSpawn<=0&&(this.en?.length||0)<(e.aliveCap||10))this._v8SpawnGroup(true);
+};
+
+// ---- iOS WebAudio unlock / volume sync ----
+if(R.audio){
+  const A=R.audio,OldPlay=A.play?.bind(A);
+  A.unlock=async function(){
+    try{
+      const C=window.AudioContext||window.webkitAudioContext;if(!C)return false;
+      this.ctx=this.ctx||new C();if(this.ctx.state==='suspended')await this.ctx.resume();
+      if(this.ctx.state==='running'&&!this._unlocked){const o=this.ctx.createOscillator(),g=this.ctx.createGain(),t=this.ctx.currentTime;g.gain.setValueAtTime(.00001,t);o.connect(g);g.connect(this.ctx.destination);o.start(t);o.stop(t+.012);this._unlocked=true;}
+      return this.ctx.state==='running';
+    }catch{return false}
+  };
+  if(OldPlay)A.play=function(type,pan=0){if(this.ctx?.state==='suspended')this.ctx.resume?.().catch(()=>{});return OldPlay(type,pan)};
+  const sync=s=>{let v=s?.settings?.audio;if(v==null)v=R.loadPrefs?.().audio;if(v==null||!Number.isFinite(+v))v=1;A.master=Math.max(0,Math.min(1,+v));};
+  sync(window.SR.app?.s);
+  const unlock=()=>{A.unlock?.()};
+  document.addEventListener('pointerdown',unlock,{capture:true,passive:true});
+  document.addEventListener('touchend',unlock,{capture:true,passive:true});
+  const shell=AP.shell;AP.shell=function(...args){sync(this.s);return shell.apply(this,args)};
+  const build=GP.build;GP.build=function(){sync(this.s);const out=build.call(this);setTimeout(()=>A.unlock?.(),0);return out};
+}
+})();

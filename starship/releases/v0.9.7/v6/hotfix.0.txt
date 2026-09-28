@@ -1,0 +1,22 @@
+(()=>{
+const R=window.SR;
+if(!R)throw new Error('V6.1 runtime missing');
+const priorMigrate=R.migrate;
+R.migrate=s=>{
+  if(s&&Array.isArray(s.weapons))s.weapons=s.weapons.filter(Boolean);
+  const out=priorMigrate(s);
+  if(!out)return out;
+  if(Array.isArray(out.weaponMounts)){
+    out.weaponMounts=out.weaponMounts.map(x=>x||null);
+    out.weapons=out.weaponMounts.filter(Boolean);
+  }else if(Array.isArray(out.weapons))out.weapons=out.weapons.filter(Boolean);
+  return out;
+};
+if(R.App?.prototype){
+  R.App.prototype.syncMounts=function(){
+    this.s=R.migrate(this.s);
+    this.s.weaponMounts=Array.isArray(this.s.weaponMounts)?this.s.weaponMounts:[];
+    this.s.weapons=this.s.weaponMounts.filter(Boolean);
+  };
+}
+})();

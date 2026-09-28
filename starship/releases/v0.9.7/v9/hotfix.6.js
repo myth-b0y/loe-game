@@ -1,0 +1,15 @@
+(()=>{
+'use strict';
+const R=window.SR;if(!R?.App||!R?.Game)return;
+R.VERSION='0.9.5';
+const AP=R.App.prototype,GP=R.Game.prototype,$=s=>document.querySelector(s);
+const migrate95=R.migrate;R.migrate=s=>{s=migrate95(s);if(!s)return s;s.version='0.9.5';return s};
+AP.v95ClearLaunchShell=function(){document.body.classList.remove('v95StationShell');delete document.body.dataset.stationTab;document.querySelectorAll('#v95StationFoot').forEach(n=>n.remove());document.querySelectorAll('.v95LaunchScrollHost').forEach(n=>{n.classList.remove('v95LaunchScrollHost');n.style.removeProperty('--v95-launch-space');n.style.removeProperty('scroll-padding-bottom')})};
+AP.v95ReserveLaunchSpace=function(tab){if(tab==='ship')return;const screen=$('.screen');if(!screen)return;const foot=$('#v95StationFoot'),space=Math.ceil((foot?.getBoundingClientRect().height||82)+18);const candidates=[screen,...screen.querySelectorAll('*')].filter(el=>{if(!(el instanceof HTMLElement)||el.clientHeight<80)return false;const st=getComputedStyle(el);return (/(auto|scroll)/.test(st.overflowY)||el.scrollHeight>el.clientHeight+16)&&el.offsetParent!==null}).sort((a,b)=>b.clientHeight-a.clientHeight);const host=candidates[0]||screen;host.classList.add('v95LaunchScrollHost');host.style.setProperty('--v95-launch-space',space+'px');host.style.scrollPaddingBottom=space+'px'};
+AP.v95DockLaunch=function(tab=this.tab||'ship'){if(document.body.classList.contains('combat'))return;const foot=[...document.querySelectorAll('.foot.v7Foot,.foot')].find(n=>n.querySelector?.('.launch'));if(!foot)return;document.querySelectorAll('#v95StationFoot').forEach(n=>{if(n!==foot)n.remove()});foot.id='v95StationFoot';foot.classList.add('v95StationFoot');document.body.appendChild(foot);document.body.classList.add('v95StationShell');document.body.dataset.stationTab=tab||'ship';const launch=foot.querySelector('.launch');if(launch){launch.removeAttribute('style');launch.classList.add('v95LaunchButton')}setTimeout(()=>document.querySelector('.screen')?.classList.remove('v93ScreenIn'),260);requestAnimationFrame(()=>this.v95ReserveLaunchSpace(tab))};
+const station95=AP.station;AP.station=function(t=this.tab){this.v95ClearLaunchShell?.();const out=station95.apply(this,arguments);requestAnimationFrame(()=>this.v95DockLaunch(t||this.tab||'ship'));return out};
+const main95=AP.main;if(main95)AP.main=function(...args){this.v95ClearLaunchShell?.();return main95.apply(this,args)};
+const settings95=AP.settings;if(settings95)AP.settings=function(...args){this.v95ClearLaunchShell?.();return settings95.apply(this,args)};
+const build95=GP.build;if(build95)GP.build=function(...args){this.app?.v95ClearLaunchShell?.();return build95.apply(this,args)};
+const sync95=()=>{R.VERSION='0.9.5';if(R.app?.s){R.app.s.version='0.9.5';try{R.save?.(R.app.s)}catch{}}if(!document.body)return;const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode()))if(n.nodeValue&&/0\.9\.[0-4]/.test(n.nodeValue))n.nodeValue=n.nodeValue.replace(/0\.9\.[0-4]/g,'0.9.5')};requestAnimationFrame(sync95);setTimeout(sync95,150);
+})();
