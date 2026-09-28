@@ -1,0 +1,53 @@
+e"><div class="rdHead"><span><small>RESEARCHING</small><b>${t.icon} ${t.name} ${j.target}</b></span><strong>${R.formatTime(left/1000)}</strong></div><div class="rdBar"><i style="width:${pct}%"></i></div><small>${t.unlocks[j.target-1]||'Technology development'}</small></div>${q.length?`<div class="rdQueue"><small>QUEUED</small>${q.map((x,i)=>`<span>${i+1}. ${R.RD_TRACKS[x.track].name} ${x.target} · ${R.formatTime(x.duration)}</span>`).join('')}</div>`:''}`;
+  };
+  renderStatus();
+  c.append(E('div','sectionTitle','RESEARCH LABS'));
+  for(const [key,t] of Object.entries(R.RD_TRACKS||{})){
+    const lvl=this.s.rd?.[key]||0,next=lvl+1,jobs=[this.s.rdActive,...(this.s.rdQueue||[])].filter(Boolean),busy=jobs.some(j=>j.track===key),full=jobs.length>=3,max=lvl>=t.max,row=E('div','panel rdProject');
+    row.innerHTML=`<i class="gearIcon">${t.icon}</i><span class="gearBody"><b>${t.name}</b><small>${t.desc}</small><strong>LEVEL ${lvl}/${t.max}${!max?` · NEXT: ${t.unlocks[next-1]||'NEW TECH'}`:''}</strong></span>`;
+    if(max)row.append(E('i','ok','✓'));
+    else if(busy)row.append(E('em','lock','IN QUEUE'));
+    else{const cost=t.cost(lvl),duration=R.rdDuration(next),b=B(`RESEARCH ${next}<small>▰ ${fmt(cost)} · ${R.formatTime(duration)}</small>`,()=>{const r=R.queueResearch(this.s,key);if(!r.ok)return this.deny(r.msg);R.save(this.s);this.station('research')},'btn small');if(full)b.disabled=true;row.append(b)}
+    c.append(row);
+  }
+  this._rdInterval=setInterval(()=>{if(!this.s||!document.body.contains(active)){clearInterval(this._rdInterval);return}const done=R.processResearch(this.s);if(done){R.save(this.s);this.toast?.('RESEARCH COMPLETE');this.station('research');return}renderStatus()},1000);
+};
+
+// Always permit buying additional copies of an unlocked weapon.
+AP.listWeapons=function(c){
+  this.syncMounts?.();this.s=R.migrate(this.s);const mountedList=(this.s.weaponMounts||[]).filter(Boolean),cap=this.weaponCapacity();
+  c.append(E('div','hint',`<span>⊙ ${mountedList.length}/${cap}</span><small>Weapon types unlock once. Every copy you buy is a separate physical gun that can occupy a hardpoint.</small>`));
+  for(const w of R.WEAPONS){
+    const owned=Math.max(this.s.weaponInventory?.[w.id]||0,this.s.weaponStock?.[w.id]||0),mounted=mountedList.filter(id=>id===w.id).length,hullOK=this.s.hull>=w.minHull,techOK=R.unlocked?R.unlocked('weapon',w,this.s):true,row=E('div','panel gear '+(mounted?'on ':'')+(!hullOK||!techOK?'locked':''));
+    row.innerHTML=`<i class="gearIcon" style="color:${w.color}">${w.icon}</i><span class="gearBody"><b>${w.name}</b><small>${w.desc}</small><strong>OWNED ${owned} · MOUNTED ${mounted}</strong>${!hullOK?`<em>🔒 ${R.HULLS[w.minHull].name}</em>`:!techOK?'<em>🔒 R&D</em>':''}</span>`;
+    const actions=E('div','weaponActions');
+    if(hullOK&&techOK){
+      actions.append(B(`BUY ANOTHER<small>▰ ${fmt(w.cost)}</small>`,()=>{if(this.s.salvage<w.cost)return this.deny('NEED SALVAGE');this.s.salvage-=w.cost;this.s.weaponInventory[w.id]=(this.s.weaponInventory[w.id]||0)+1;this.s.weaponStock[w.id]=this.s.weaponInventory[w.id];if(!this.s.unlockedW.includes(w.id))this.s.unlockedW.push(w.id);R.save(this.s);this.station('arsenal')},'btn small'));
+      if(owned>mounted)actions.append(B('EQUIP',()=>this.mountWeapon(w.id),'btn small primary'));
+    }
+    row.append(actions);c.append(row);
+  }
+};
+
+const GP=R.Game.prototype;
+
+// ---------- COMBAT HUD LIFECYCLE ----------
+const oldBuild=GP.build;
+GP.build=function(){document.querySelectorAll('#autoRun').forEach(n=>n.remove());oldBuild.call(this);const all=[...document.querySelectorAll('#autoRun')];if(all.length>1)all.slice(0,-1).forEach(n=>n.remove());const a=$('#autoRun');if(a){a.textContent='AUTO';a.classList.toggle('on',false)}};
+
+// ---------- FORMATION ZONES ----------
+R.FORMATION_ZONES={
+ drone:[[-64,-70],[64,-70],[-92,-18],[92,-18],[-68,55],[68,55],[-112,42],[112,42]],
+ support:[[-122,-58],[122,-58],[-145,16],[145,16],[-112,82],[112,82]]
+};
+R.droneColor=d=>d?.id==='drone.repair'?'#63e08b':d?.id==='drone.guardian'?'#63ddff':d?.id==='drone.shield'?'#66a8ff':d?.id==='drone.ion'?'#9d82ff':d?.id==='drone.bomber'?'#ffc55a':'#ff875f';
+GP.syncAllies=function(force=false){
+  const equippedD=this.s.drones||this.s.equippedDrones||[],equippedS=this.s.supports||this.s.equippedSupports||[];
+  const wantD=[...equippedD];for(let i=0;i<(this.mods.drones||0);i++)if(equippedD.length)wantD.push(equippedD[i%equippedD.length]);
+  const wantS=[...equippedS];for(let i=0;i<(this.mods.escorts||0);i++)if(equippedS.length)wantS.push(equippedS[i%equippedS.length]);
+  const sigD=wantD.join('|'),sigS=wantS.join('|');
+  if(force||sigD!==this._droneSig){let off=0,def=0;this.droneUnits=wantD.map((id,i)=>{const d=R.DRONES.find(x=>x.id===id);if(!d)return null;const defensive=d.role==='defense',u={def:d,x:this.cx,y:this.cy,cd:Math.random(),index:i,state:'hold',target:null,stateTime:0};if(defensive)u.track=def++;else u.zone=off++%R.FORMATION_ZONES.drone.length;return u}).filter(Boolean);this._droneSig=sigD;}
+  if(force||sigS!==this._supportSig){this.supportUnits=wantS.map((id,i)=>{const d=R.SUPPORTS.find(x=>x.id===id);return d?{def:d,x:this.cx,y:this.cy,cd:Math.random(),index:i,zone:i%R.FORMATION_ZONES.support.length,state:'hold',target:null,stateTime:0}:null}).filter(Boolean);this._supportSig=sigS;}
+};
+GP._moveFleetUnit=function(u,tx,ty,dt,speed){u.x+=(tx-u.x)*Math.min(1,dt*speed);u.y+=(ty-u.y)*Math.min(1,dt*speed)};
+GP._fleetTarget=function(u,max=420){const hs=(t
