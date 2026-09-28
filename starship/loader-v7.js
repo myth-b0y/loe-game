@@ -1,5 +1,5 @@
 (async()=>{
-  const V='7.0';
+  const V='7.0.1';
   const base='./v5/',v6='./v6/',v7='./v7/';
   const text=async url=>{const r=await fetch(url+'?v='+V,{cache:'no-store'});if(!r.ok)throw new Error('LOAD '+url);return r.text()};
   const join=async(root,name,count)=>{let out='';for(let i=0;i<count;i++)out+=await text(root+name+'.'+i+'.txt');return out};
@@ -20,6 +20,8 @@
     (0,eval)(await text(v6+'hotfix.4.txt'));
     const s7=document.createElement('style');s7.textContent=await text(v7+'style.css');document.head.append(s7);
     (0,eval)(await text(v7+'patch.js'));
+    const s71=document.createElement('style');s71.textContent=await text(v7+'style.1.css');document.head.append(s71);
+    (0,eval)(await text(v7+'hotfix.1.js'));
     window.SR.VERSION='0.7.0';
     if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);try{window.SR.save(window.SR.app.s)}catch{}}
     if(document.readyState!=='loading'&&window.SR?.App&&!window.SR.app)window.SR.app=new window.SR.App();
