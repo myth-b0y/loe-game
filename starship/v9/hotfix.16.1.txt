@@ -1,0 +1,65 @@
+=null)s.foundationRD.operations=clamp(Math.max(0,(s.checkpoints?.length||1)-1),0,6);
+  s.quarters=clamp(Math.max(Number(s.quarters)||0,hm.crewBase),hm.crewBase,hm.crewMax);
+  s.weaponInventory=s.weaponInventory||s.weaponStock||{};
+  let wm=mounts(s).slice(0,hm.weapons);while(wm.length<hm.weapons)wm.push(null);s.weaponMounts=wm;s.weapons=wm.slice();
+  for(const d of R.WEAPONS||[]){const eq=countId(wm,d.id),legacy=(s.unlockedW||[]).includes(d.id)?1:0;s.weaponInventory[d.id]=Math.max(stockAt(s.weaponInventory,d.id),eq,legacy)}
+  s.equippedDrones=droneIds(s).slice(0,6);s.drones=s.equippedDrones.slice();ensureStock(s,'droneStock',R.DRONES,s.equippedDrones,s.ownedDrones||[]);
+  s.equippedSupports=supportIds(s).slice(0,4);s.supports=s.equippedSupports.slice();ensureStock(s,'supportStock',R.SUPPORTS,s.equippedSupports,s.ownedSupports||[]);
+  s.tactical=s.tactical||s.actives||[];s.actives=s.tactical.slice();s.tacticalStock=s.tacticalStock||{};for(const id of [...(s.tactical||[]),...(s.unlockedA||[])])s.tacticalStock[id]=Math.max(stockAt(s.tacticalStock,id),1);
+  s.crew=Array.isArray(s.crew)?s.crew:[];normalizeCrew(s);
+  // Protect legacy active crews that exceeded an older quarter value, but never exceed this hull's new ceiling.
+  const act=activeCrew(s);if(act.length>s.quarters)s.quarters=Math.min(hm.crewMax,act.length);if(activeCrew(s).length>s.quarters){let over=activeCrew(s).length-s.quarters;for(const c of [...s.crew].reverse())if(over>0&&c.assignment!=='helm'){c.assignment='reserve';c.assigned=false;over--}}
+  s.systems.droneBay=clamp(s.systems.droneBay||0,0,hm.drones);s.systems.hangar=clamp(s.systems.hangar||0,0,hm.support);s.systems.fireControl=clamp(s.systems.fireControl||1,1,Math.min(6,Math.max(1,Math.ceil(hm.weapons/2))));
+  s.checkpoints=[...new Set([1,...(s.checkpoints||[]).map(v=>{v=Math.max(1,Math.floor(Number(v)||1));return v>1&&v%10===1?v-1:v})])].sort((a,b)=>a-b);
+  s.version='0.9.9';return s;
+};
+
+const new16=R.newSave;
+R.newSave=i=>{const s=R.migrate(new16(i));s.saveSchema=SAVE_SCHEMA;s.hull=0;s.quarters=2;s.systems=Object.assign({},s.systems,{fireControl:1,droneBay:0,hangar:0});s.foundationRD={fire:0,drones:0,flight:0,tactical:0,engineering:0,operations:0};normalizeCrew(s);let helm=false,gun=false;for(const c of s.crew){if(roleOf(c)==='pilot'&&!helm){c.assignment='helm';c.assigned=true;helm=true}else if(roleOf(c)==='gunner'&&!gun){c.assignment='fire';c.assigned=true;gun=true}else{c.assignment='reserve';c.assigned=false}}R.save(s);return s};
+
+AP.weaponCapacity=function(){return R.foundationWeaponCapacity(this.s)};
+AP.droneCapacity=function(){return R.foundationDroneCapacity(this.s,true)};
+AP.supportCapacity=function(){return R.foundationSupportCapacity(this.s)};
+
+// ---------------------------------------------------------------------------
+// CREW: active ship staff versus unlimited Station reserve.
+// ---------------------------------------------------------------------------
+const NAME_A=['Mara','Vale','Kira','Ren','Sol','Tarin','Nox','Ari','Jace','Mira','Cai','Orin','Veya','Rook','Eli','Nova'];
+const NAME_B=['Venn','Kade','Rell','Soren','Tavi','Morrow','Voss','Quill','Ilyan','Renn','Arden','Sable','Kest','Marrow','Vale','Dane'];
+const makeCrew=role=>{const prof=PROF_FOR[role]??2,spec=role==='engineer'?['Engineering','Drone Systems','Shield Systems','Reactor','Repair'][Math.random()*5|0]:role==='pilot'?['Helm','Flight Operations'][Math.random()*2|0]:role==='gunner'?['Fire Control','Heavy Weapons'][Math.random()*2|0]:role==='tactical'?['Combat Info','EW'][Math.random()*2|0]:'Command';return{id:'crew.'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),name:`${NAME_A[Math.random()*NAME_A.length|0]} ${NAME_B[Math.random()*NAME_B.length|0]}`,role,profession:prof,specialty:spec,level:1,skill:.9+Math.random()*.2,assigned:false,assignment:'reserve'}};
+const assignmentOptions=(s,c)=>{const role=roleOf(c),o=[['reserve','RESERVE']];if(role==='pilot'){o.push(['helm','FLAGSHIP HELM']);supportIds(s).forEach((id,i)=>o.push([`support:${i}:pilot`,`SUPPORT ${i+1} PILOT`]))}else if(role==='gunner'){o.push(['fire','FLAGSHIP FIRE CONTROL']);supportIds(s).forEach((id,i)=>{const d=supportDef(s,i);if((d?.crewReq||1)>=2)o.push([`support:${i}:gunner`,`SUPPORT ${i+1} GUNNER`])})}else if(role==='engineer'){o.push(['engineering','ENGINEERING'],['drone','DRONE CONTROL'])}else if(role==='tactical')o.push(['tactical','TACTICAL']);else if(role==='command')o.push(['command','COMMAND']);return o};
+const assignmentLabel=a=>{if(!a||a==='reserve')return'RESERVE';if(a==='helm')return'HELM';if(a==='fire')return'FIRE CONTROL';if(a==='drone')return'DRONE CONTROL';if(a==='engineering')return'ENGINEERING';if(a==='tactical')return'TACTICAL';if(a==='command')return'COMMAND';const m=/support:(\d+):(pilot|gunner)/.exec(a);return m?`SUPPORT ${Number(m[1])+1} ${m[2].toUpperCase()}`:a.toUpperCase()};
+const setAssignment=(app,c,val)=>{const s=app.s,old=c.assignment||'reserve',wasActive=old!=='reserve',willActive=val!=='reserve';if(!wasActive&&willActive&&activeCrew(s).length>=s.quarters)return app.deny?.('CREW QUARTERS FULL');if(val==='helm'||val==='drone'||val==='tactical'||val==='command'||val.startsWith('support:'))for(const q of s.crew||[])if(q!==c&&q.assignment===val){q.assignment='reserve';q.assigned=false}c.assignment=val;c.assigned=willActive;cleanupAssignments(s);R.save(s);app.station('crew')};
+const pickFree=(s,role,pred=()=>true)=>s.crew.find(c=>roleOf(c)===role&&c.assignment==='reserve'&&pred(c));
+const assignIfRoom=(s,c,a)=>{if(!c||activeCrew(s).length>=s.quarters)return false;c.assignment=a;c.assigned=true;return true};
+const autoCrew=s=>{
+  normalizeCrew(s);for(const c of s.crew){c.assignment='reserve';c.assigned=false}
+  assignIfRoom(s,pickFree(s,'pilot'),'helm');
+  supportIds(s).forEach((id,i)=>{assignIfRoom(s,pickFree(s,'pilot'),`support:${i}:pilot`);const d=supportDef(s,i);if((d?.crewReq||1)>=2)assignIfRoom(s,pickFree(s,'gunner'),`support:${i}:gunner`)});
+  const needG=Math.max(1,Math.ceil(Math.min(physicalHull(s).weapons,(s.systems.fireControl||1)*2)/2)-autoPairs(s));for(let i=0;i<needG;i++)assignIfRoom(s,pickFree(s,'gunner'),'fire');
+  if(droneIds(s).length){let e=pickFree(s,'engineer',c=>/drone/i.test(c.specialty||''))||pickFree(s,'engineer');assignIfRoom(s,e,'drone')}
+  assignIfRoom(s,pickFree(s,'engineer'),'engineering');assignIfRoom(s,pickFree(s,'tactical'),'tactical');assignIfRoom(s,pickFree(s,'command'),'command');cleanupAssignments(s);
+};
+
+AP.tab_crew=function(c){
+  this.s=R.migrate(this.s);const s=this.s,active=activeCrew(s).length;
+  c.append(E('div','hint v99Hint',`<span>👥 ACTIVE ${active}/${s.quarters}</span><small>Reserve crew remain at Station and do not consume berths. One person can hold one ship assignment.</small>`));
+  const tools=E('div','v99CrewTools');tools.append(B('AUTO CREW',()=>{autoCrew(s);R.save(s);this.station('crew')},'btn small primary'));c.append(tools);
+  const activeTitle=E('div','sectionTitle','ACTIVE CREW');c.append(activeTitle);
+  for(const cr of s.crew.filter(x=>x.assignment!=='reserve'))c.append(this.v99CrewCard(cr));
+  c.append(E('div','sectionTitle','STATION RESERVE'));
+  for(const cr of s.crew.filter(x=>x.assignment==='reserve'))c.append(this.v99CrewCard(cr));
+  c.append(E('div','sectionTitle','RECRUIT'));
+  const recruit=E('div','v99RecruitGrid'),cost=350+Math.floor((s.crew.length||0)/5)*75;
+  [['pilot','PILOT'],['gunner','GUNNER'],['engineer','ENGINEER'],['tactical','TACTICAL'],['command','COMMAND']].forEach(([r,n])=>recruit.append(B(`+ ${n}<small>▰ ${fmt(cost)}</small>`,()=>{if(s.salvage<cost)return this.deny?.('NEED SALVAGE');s.salvage-=cost;s.crew.push(makeCrew(r));R.save(s);this.station('crew')},'btn small')));c.append(recruit);
+};
+AP.v99CrewCard=function(cr){const p=E('div','panel crew v99Crew '+(cr.assignment!=='reserve'?'on':''));p.innerHTML=`<i class="gearIcon">★</i><span class="gearBody"><b>${esc(cr.name)}</b><small>${roleOf(cr).toUpperCase()} · ${esc(cr.specialty||'')}</small><strong>${assignmentLabel(cr.assignment)}</strong></span>`;const sel=E('select','v99Assign');for(const [v,n] of assignmentOptions(this.s,cr)){const o=document.createElement('option');o.value=v;o.textContent=n;if(v===cr.assignment)o.selected=true;sel.append(o)}sel.onchange=()=>setAssignment(this,cr,sel.value);p.append(sel);return p};
+
+// ---------------------------------------------------------------------------
+// SYSTEMS + R&D: technology unlocks, hardware installs, crew operates.
+// ---------------------------------------------------------------------------
+const systemMax=(s,key)=>{const h=physicalHull(s),r=rd(s);if(key==='fireControl')return Math.min(6,Math.ceil((h.weapons||2)/2),1+(r.fire||0));if(key==='droneBay')return Math.min(h.droneCap||0,droneResearchCap(s));if(key==='hangar')return Math.min(h.supportCap||0,flightResearchCap(s));return Math.min(6,1+(s.hull||0),1+(r.engineering||0))};
+const systemCost=(key,lvl)=>{const base={shield:600,armor:650,reactor:750,engines:600,fireControl:850,droneBay:1100,hangar:2800}[key]||700,mul={shield:520,armor:560,reactor:620,engines:520,fireControl:800,droneBay:950,hangar:1900}[key]||600;return Math.round(base+lvl*mul)};
+const systemName=key=>({shield:'Shield Array',armor:'Armor Plating',reactor:'Reactor',engines:'Engines',fireControl:'Fire Control',droneBay:'Drone Bay',hangar:'Hangar'}[key]||key);
+const systemIcon=key=>({shield:'⬡',armor:'▰',reactor:'⚡',engines:'»',fireControl:'⊙',droneBay:'◇',hangar:'▷'}[key]||'△');
+const systemStat=(
