@@ -1,0 +1,95 @@
+(()=>{
+'use strict';
+const R=window.SR;if(!R?.App||!R?.Game)return;
+const AP=R.App.prototype,GP=R.Game.prototype,$=s=>document.querySelector(s),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const E=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
+const B=(h,fn,c='btn')=>{const b=E('button',c,h);b.onclick=()=>{R.audio?.play?.('ui');fn?.()};return b};
+const fmt=n=>{n=Math.max(0,Math.round(Number(n)||0));return n<1000?String(n):n<1e6?(n/1000).toFixed(n<10000?1:0)+'k':(n/1e6).toFixed(1)+'m'};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+R.VERSION='0.9.9';
+
+// ---------------------------------------------------------------------------
+// v0.9.9 FINAL FOUNDATION PASS
+// Permanent progression, Station dependencies, fleet staffing, wave pacing,
+// shield readability, developer tools, and performance guardrails.
+// ---------------------------------------------------------------------------
+const SAVE_KEY='sr_mobile_v2',BACKUP_KEY='sr_mobile_v2_pre_foundation_backup',SAVE_SCHEMA=7;
+try{const raw=localStorage.getItem(SAVE_KEY);if(raw&&!localStorage.getItem(BACKUP_KEY))localStorage.setItem(BACKUP_KEY,raw)}catch{}
+
+const HULL_META=[
+  {weapons:2,drones:0,support:0,crewBase:2,crewMax:2,active:1,cost:0,cores:0},
+  {weapons:4,drones:1,support:0,crewBase:3,crewMax:3,active:1,cost:1200,cores:0},
+  {weapons:4,drones:2,support:0,crewBase:4,crewMax:5,active:2,cost:3200,cores:0},
+  {weapons:6,drones:3,support:1,crewBase:6,crewMax:7,active:2,cost:7500,cores:1},
+  {weapons:8,drones:4,support:2,crewBase:8,crewMax:10,active:3,cost:16000,cores:2},
+  {weapons:10,drones:5,support:3,crewBase:11,crewMax:14,active:4,cost:34000,cores:3},
+  {weapons:12,drones:6,support:4,crewBase:14,crewMax:18,active:4,cost:70000,cores:5}
+];
+(R.HULLS||[]).forEach((h,i)=>{const m=HULL_META[i];if(!h||!m)return;h.weapons=m.weapons;h.droneCap=m.drones;h.supportCap=m.support;h.crew=m.crewMax;h.active=m.active;h.cost=m.cost;h.foundationCoreCost=m.cores;h.crewBase=m.crewBase});
+R.MAX_DRONES=6;R.MAX_SUPPORTS=4;
+
+R.FOUNDATION_RD={
+  fire:{name:'Fire Control',icon:'⊙',desc:'Coordinates larger flagship batteries and gradually automates paired hardpoints.',minHull:0,cost:[0,700,1500,3000,5600,9800,16000],cores:[0,0,0,0,1,0,2],milestones:['Targeting net','Paired battery sync','Assisted tracking','Battery automation','Fleet fire grid','Command fire network']},
+  drones:{name:'Drone Development',icon:'◇',desc:'Installs the Drone Bay, unlocks chassis, and expands control capacity.',minHull:1,cost:[0,900,1800,3400,6200,10500,17000],cores:[0,0,0,1,0,1,2],milestones:['Drone Bay installation','Striker + Guardian','Ion + Repair','Expanded control','Bomber + Shield','Swarm control']},
+  flight:{name:'Flight Development',icon:'▷',desc:'Installs the Hangar and develops true piloted support craft.',minHull:3,cost:[0,2200,4200,7600,12000,18500,27000],cores:[0,0,0,1,0,1,2],milestones:['Hangar installation','Interceptor + Heavy Fighter','Expanded hangar','Bomber + EW craft','Fleet coordination','Cutter + Escort Gunship']},
+  tactical:{name:'Tactical Systems',icon:'⚡',desc:'Unlocks increasingly advanced direct battlefield systems.',minHull:1,cost:[0,850,1700,3300,6100,10200,16500],cores:[0,0,0,0,1,0,1],milestones:['Core tactical suite','Field control','Strike systems','Emergency systems','Advanced command','Experimental systems']},
+  engineering:{name:'Ship Engineering',icon:'△',desc:'Raises the installation ceiling for shields, armor, reactor, engines, and advanced ship hardware.',minHull:0,cost:[0,650,1400,2800,5200,9000,15000],cores:[0,0,0,0,1,0,1],milestones:['Service access','Reinforced systems','Integrated power','Advanced structure','Warship engineering','Capital-grade systems']},
+  operations:{name:'Operations',icon:'◈',desc:'Improves expedition logistics, checkpoint starts, and salvage handling.',minHull:0,cost:[0,500,1100,2200,4200,7600,12500],cores:[0,0,0,0,0,0,1],milestones:['Recovery doctrine','Checkpoint logistics','Salvage routing','Threat-start prep','Deep-sector logistics','Expedition command']}
+};
+
+const ROLE_MAP={0:['pilot','Helm'],1:['gunner','Kinetic'],2:['engineer','Engineering'],3:['engineer','Reactor'],4:['engineer','Shield Systems'],5:['engineer','Drone Systems'],6:['pilot','Flight Operations'],7:['tactical','Combat Info'],8:['tactical','EW'],9:['engineer','Repair'],10:['command','Logistics'],11:['command','Executive']};
+const PROF_FOR={pilot:0,gunner:1,engineer:2,tactical:7,command:11};
+const roleOf=c=>{if(!c)return null;const r=String(c.role||'').toLowerCase();if(['pilot','gunner','engineer','tactical','command'].includes(r))return r;return ROLE_MAP[c.profession]?.[0]||null};
+const specialtyOf=c=>c?.specialty||ROLE_MAP[c?.profession]?.[1]||({pilot:'Helm',gunner:'Fire Control',engineer:'Engineering',tactical:'Combat Info',command:'Command'}[roleOf(c)]||'Crew');
+const supportIds=s=>Array.isArray(s?.equippedSupports)?s.equippedSupports:(Array.isArray(s?.supports)?s.supports:[]);
+const droneIds=s=>Array.isArray(s?.equippedDrones)?s.equippedDrones:(Array.isArray(s?.drones)?s.drones:[]);
+const mounts=s=>Array.isArray(s?.weaponMounts)?s.weaponMounts:(Array.isArray(s?.weapons)?s.weapons:[]);
+const activeCrew=s=>(s?.crew||[]).filter(c=>c?.assignment&&c.assignment!=='reserve');
+const crewAt=(s,a)=>(s?.crew||[]).filter(c=>c?.assignment===a);
+const fireGunners=s=>crewAt(s,'fire').filter(c=>roleOf(c)==='gunner').length;
+const hasHelm=s=>crewAt(s,'helm').some(c=>roleOf(c)==='pilot');
+const hasDroneOperator=s=>crewAt(s,'drone').some(c=>roleOf(c)==='engineer');
+const supportDef=(s,i)=>(R.SUPPORTS||[]).find(d=>d.id===supportIds(s)[i]);
+const supportSeatFilled=(s,i,seat)=>crewAt(s,`support:${i}:${seat}`).some(c=>roleOf(c)===(seat==='pilot'?'pilot':'gunner'));
+const supportReady=(s,i)=>{const d=supportDef(s,i);if(!d)return false;if(!supportSeatFilled(s,i,'pilot'))return false;if((d.crewReq||1)>=2&&!supportSeatFilled(s,i,'gunner'))return false;return true};
+const physicalHull=s=>R.HULLS?.[clamp(s?.hull|0,0,6)]||R.HULLS?.[0];
+const rd=s=>s?.foundationRD||{};
+const autoPairs=s=>[0,0,1,1,2,3][clamp((s?.systems?.fireControl||1)-1,0,5)]||0;
+R.foundationWeaponCapacity=s=>{
+  const h=physicalHull(s),fc=clamp(s?.systems?.fireControl||1,1,6),fcCap=fc*2,g=fireGunners(s);if(g<=0)return 0;
+  return Math.min(h?.weapons||2,fcCap,2*(g+autoPairs(s)));
+};
+const droneResearchCap=s=>[0,1,2,3,4,5,6][clamp(rd(s).drones||0,0,6)]||0;
+const flightResearchCap=s=>[0,1,1,2,2,3,4][clamp(rd(s).flight||0,0,6)]||0;
+R.foundationDroneCapacity=(s,needCrew=true)=>{const h=physicalHull(s),cap=Math.min(6,h?.droneCap||0,s?.systems?.droneBay||0,droneResearchCap(s));return needCrew&&!hasDroneOperator(s)?0:cap};
+R.foundationSupportCapacity=s=>{const h=physicalHull(s);return Math.min(4,h?.supportCap||0,s?.systems?.hangar||0,flightResearchCap(s))};
+R.droneCapacity=s=>R.foundationDroneCapacity(s,true);
+
+const stockAt=(obj,id)=>Math.max(0,Number(obj?.[id])||0);
+const countId=(arr,id)=>(arr||[]).filter(x=>x===id).length;
+const ensureStock=(s,key,defs,equipped,legacy=[])=>{s[key]=s[key]||{};for(const d of defs||[]){const eq=countId(equipped,d.id),old=legacy.includes?.(d.id)?1:0;s[key][d.id]=Math.max(stockAt(s[key],d.id),eq,old)}};
+const cleanupAssignments=s=>{const ids=supportIds(s);for(const c of s.crew||[]){if(!c.assignment?.startsWith('support:'))continue;const i=Number(c.assignment.split(':')[1]);if(!Number.isFinite(i)||i<0||i>=ids.length)c.assignment='reserve'};for(const c of s.crew||[]){c.assigned=!!c.assignment&&c.assignment!=='reserve'}};
+const normalizeCrew=s=>{
+  let helmTaken=false;
+  for(const c of s.crew||[]){c.role=roleOf(c)||'engineer';c.specialty=specialtyOf(c);if(c.level==null)c.level=1;if(c.skill==null)c.skill=1;
+    if(!c.assignment){if(c.assigned){if(c.role==='pilot'&&!helmTaken){c.assignment='helm';helmTaken=true}else if(c.role==='gunner')c.assignment='fire';else if(c.profession===5||/drone/i.test(c.specialty)){c.assignment='drone'}else if(c.role==='tactical')c.assignment='tactical';else if(c.role==='command')c.assignment='command';else c.assignment='engineering'}else c.assignment='reserve'}
+    if(c.assignment==='helm')helmTaken=true;c.assigned=c.assignment!=='reserve';
+  }
+  cleanupAssignments(s);
+};
+
+const migrate16=R.migrate;
+R.migrate=s=>{
+  s=migrate16?.(s)||s;if(!s)return s;
+  const hm=HULL_META[clamp(s.hull|0,0,6)];
+  s.saveSchema=Math.max(SAVE_SCHEMA,Number(s.saveSchema)||0);
+  s.systems=Object.assign({shield:0,armor:0,reactor:0,engines:0,fireControl:0,droneBay:0,hangar:0},s.systems||{});
+  const currentMounted=mounts(s).filter(Boolean).length;
+  if(!s.systems.fireControl)s.systems.fireControl=clamp(Math.max(1,Math.ceil(currentMounted/2)),1,6);
+  s.foundationRD=Object.assign({},s.foundationRD||{});
+  if(s.foundationRD.fire==null)s.foundationRD.fire=clamp(Math.max(0,(s.systems.fireControl||1)-1,Math.min(6,s.rd?.weapons||0)),0,6);
+  if(s.foundationRD.drones==null)s.foundationRD.drones=clamp(Math.max(s.rd?.drones||0,s.systems.droneBay||0),0,6);
+  if(s.foundationRD.flight==null){const old=s.rd?.fleet||0;s.foundationRD.flight=clamp(Math.max(old===3?6:old===2?4:old===1?2:0,s.systems.hangar?1:0),0,6)}
+  if(s.foundationRD.tactical==null)s.foundationRD.tactical=clamp(s.rd?.tactical||0,0,6);
+  if(s.foundationRD.engineering==null)s.foundationRD.engineering=clamp(Math.max(s.systems.shield||0,s.systems.armor||0,s.systems.reactor||0,s.systems.engines||0)-1,0,6);
+  if(s.foundationRD.operations=
