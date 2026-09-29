@@ -31,17 +31,18 @@ const loaderVersion=()=>{
 };
 const versionCode=v=>{const p=String(v||'').split('.').map(n=>Number(n)||0);return(p[0]||0)*10000+(p[1]||0)*100+(p[2]||0)};
 const compatFetch=async path=>{
-  const sep=path.includes('?')?'&':'?',url=path+sep+'compat=9.9.2&t='+Date.now();
+  const sep=path.includes('?')?'&':'?',url=path+sep+'compat=9.9.3&t='+Date.now();
   const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('COMPAT '+path);return r.text();
 };
 const compatEval=async path=>(0,eval)(await compatFetch(path));
+const compatJoinEval=async(root,name,count)=>{let code='';for(let i=0;i<count;i++)code+=await compatFetch(`${root}${name}.${i}.txt`);return(0,eval)(code)};
 const compatStyle=async path=>{
   const key='v99-'+path.replace(/[^a-z0-9]/gi,'-');if(document.querySelector(`style[data-compat="${key}"]`))return;
   const s=document.createElement('style');s.dataset.compat=key;s.textContent=await compatFetch(path);document.head.append(s);
 };
 const runHomeCompat=async()=>{
   if(R._v99HomeCompatRunning)return;
-  const v=loaderVersion(),code=versionCode(v);if(!code||code>=90901)return;
+  const v=loaderVersion(),code=versionCode(v);if(!code||code>=90903)return;
   R._v99HomeCompatRunning=true;
   try{
     // Known loader progression:
@@ -49,12 +50,14 @@ const runHomeCompat=async()=>{
     // 9.8.3 => +hotfix.12
     // 9.8.4 => +hotfix.13/style.8
     // 9.9.0 => +hotfix.14
-    // 9.9.1 => +hotfix.15
+    // 9.9.1/9.9.2 => +hotfix.15 and stable Home Screen path
+    // 9.9.3 => Final Foundation progression layer.
     if(code<90802){await compatStyle('./v9/style.7.css');await compatEval('./v9/hotfix.11.js')}
     if(code<90803)await compatEval('./v9/hotfix.12.js');
     if(code<90804){await compatStyle('./v9/style.8.css');await compatEval('./v9/hotfix.13.js')}
     if(code<90900)await compatEval('./v9/hotfix.14.js');
     if(code<90901)await compatEval('./v9/hotfix.15.js');
+    if(code<90903){await compatStyle('./v9/style.9.css');await compatJoinEval('./v9/','hotfix.16',5)}
     R.VERSION='0.9.9';
     if(R.app?.s){R.app.s=R.migrate?.(R.app.s)||R.app.s;R.app.s.version='0.9.9';try{R.save?.(R.app.s)}catch{}}
     R._v99HomeCompatLoaded=true;
