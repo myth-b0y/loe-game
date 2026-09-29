@@ -36,6 +36,18 @@ const maxProfile=s=>{s.hull=6;s.quarters=18;s.salvage=999999;s.cores=99;s.founda
 const settings16=AP.settings;
 AP.settings=function(...args){const out=settings16.apply(this,args);requestAnimationFrame(()=>{if(!this.s)return;const m=$('.screen');if(!m||$('#v99Dev'))return;const sec=E('section','v99Dev');sec.id='v99Dev';sec.innerHTML='<div class="sectionTitle">DEVELOPER</div><div class="hint"><span>FOUNDATION TEST TOOLS</span><small>These affect only the current save slot.</small></div>';const grid=E('div','v99DevGrid');grid.append(B('GRANT TEST RESOURCES',()=>{this.s.salvage=999999;this.s.cores=99;R.save(this.s);this.settings()},'btn small'),B('GENERATE TEST CREW',()=>{ensureTestCrew(this.s);R.save(this.s);this.station('crew')},'btn small'),B('MAX TEST PROFILE',()=>{maxProfile(this.s);R.save(this.s);this.station('ship')},'btn small primary'),B('COPY TEST SAVE',async()=>{const txt=JSON.stringify(R.migrate(this.s));try{await navigator.clipboard.writeText(txt);this.toast?.('SAVE COPIED')}catch{prompt('Copy save JSON',txt)}},'btn small'),B('IMPORT TEST SAVE',()=>{const txt=prompt('Paste save JSON');if(!txt)return;try{const x=JSON.parse(txt),slot=this.s.slot;x.slot=slot;this.s=R.migrate(x);R.save(this.s);this.station('ship')}catch{this.deny?.('INVALID SAVE')}},'btn small'));const perf=B(`${this.s.settings?.devPerf?'✓ ':''}SHOW PERFORMANCE`,()=>{this.s.settings=this.s.settings||{};this.s.settings.devPerf=!this.s.settings.devPerf;R.save(this.s);this.settings()},'btn small');grid.append(perf);sec.append(grid);const back=[...m.querySelectorAll('button')].find(b=>/MAIN MENU|BACK/.test(b.textContent||''));if(back)back.before(sec);else m.append(sec)});return out};
 
+// Compatibility glue for older Station/Tactical code and checkpoint launches.
+// Foundation R&D remains authoritative, while legacy rd fields mirror enough state
+// for older equipment gates that still read them.
+const migrate16Compat=R.migrate;
+R.migrate=s=>{s=migrate16Compat(s);if(!s)return s;s.rd=Object.assign({weapons:0,drones:0,tactical:0,fleet:0},s.rd||{});s.rd.tactical=Math.max(s.rd.tactical||0,s.foundationRD?.tactical||0);s.rd.drones=Math.max(s.rd.drones||0,s.foundationRD?.drones||0);s.rd.weapons=Math.max(s.rd.weapons||0,s.foundationRD?.fire||0);const f=s.foundationRD?.flight||0;s.rd.fleet=Math.max(s.rd.fleet||0,f>=6?3:f>=4?2:f>=2?1:0);return s};
+
+AP.startAtCheckpoint=function(w){
+  this.s=R.migrate(this.s);R.save(this.s);const g=new R.Game(this,this.s);R.game=g;g.startCheckpoint=w;g.wave=Math.max(0,w-1);g.count=.8;g.sectorMap={};
+  if(w>1){const bundle=Math.min(18,Math.max(0,Math.floor((w-1)*.33))),families=new Set((g.s.weaponMounts||[]).filter(Boolean).map(id=>R.WEAPONS?.find(x=>x.id===id)?.family).filter(Boolean)),pool=(R.CARDS||[]).filter(c=>c.rarity!=='fractured'&&(!c.family||families.has(c.family)));for(let i=0;i<bundle&&pool.length;i++){const c=pool[(i*7+w)%pool.length];try{g.applyCard?.(c)}catch{}}g.level=Math.max(g.level||1,1+bundle);g.xp=0;if(Number.isFinite(g.next))g.next=Math.max(g.next,80+bundle*35)}
+  return g;
+};
+
 // Final version stamp and migration refresh.
 const stamp=()=>{R.VERSION='0.9.9';if(R.app?.s){R.app.s=R.migrate(R.app.s);try{R.save(R.app.s)}catch{}}};
 requestAnimationFrame(stamp);setTimeout(stamp,260);
