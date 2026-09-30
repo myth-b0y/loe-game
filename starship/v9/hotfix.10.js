@@ -31,7 +31,7 @@ const loaderVersion=()=>{
 };
 const versionCode=v=>{const p=String(v||'').split('.').map(n=>Number(n)||0);return(p[0]||0)*10000+(p[1]||0)*100+(p[2]||0)};
 const compatFetch=async path=>{
-  const sep=path.includes('?')?'&':'?',url=path+sep+'compat=9.9.8&t='+Date.now();
+  const sep=path.includes('?')?'&':'?',url=path+sep+'compat=9.9.9&t='+Date.now();
   const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('COMPAT '+path);return r.text();
 };
 const compatEval=async path=>(0,eval)(await compatFetch(path));
@@ -42,7 +42,7 @@ const compatStyle=async path=>{
 };
 const runHomeCompat=async()=>{
   if(R._v99HomeCompatRunning)return;
-  const v=loaderVersion(),code=versionCode(v);if(!code||code>=90908)return;
+  const v=loaderVersion(),code=versionCode(v);if(!code||code>=90909)return;
   R._v99HomeCompatRunning=true;
   try{
     // Known loader progression:
@@ -54,6 +54,7 @@ const runHomeCompat=async()=>{
     // 9.9.3/9.9.4 => Final Foundation progression layer
     // 9.9.5 => Ship-upgrade visibility + legacy support seating repair
     // 9.9.6+ => Foundation R&D reconciliation
+    // 9.9.9 => authoritative legacy/Foundation Flight sync + honest Fleet locks
     if(code<90802){await compatStyle('./v9/style.7.css');await compatEval('./v9/hotfix.11.js')}
     if(code<90803)await compatEval('./v9/hotfix.12.js');
     if(code<90804){await compatStyle('./v9/style.8.css');await compatEval('./v9/hotfix.13.js')}
@@ -62,6 +63,7 @@ const runHomeCompat=async()=>{
     if(code<90903){await compatStyle('./v9/style.9.css');await compatJoinEval('./v9/','hotfix.16',5)}
     if(code<90905)await compatEval('./v9/hotfix.17.js');
     if(code<90906)await compatEval('./v9/hotfix.18.js');
+    if(code<90909)await compatEval('./v9/hotfix.19.js');
     R.VERSION='0.9.9';
     if(R.app?.s){R.app.s=R.migrate?.(R.app.s)||R.app.s;R.app.s.version='0.9.9';try{R.save?.(R.app.s)}catch{}}
     R._v99HomeCompatLoaded=true;
