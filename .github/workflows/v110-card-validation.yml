@@ -1,16 +1,19 @@
-name: v1.1 Card Validation
+name: v1.2 Card Validation
 
 on:
   push:
     branches:
       - feature/v110-card-system
+      - feature/v120-card-ux
   pull_request:
     paths:
       - 'starship/v10/**'
       - 'starship/loader-v9.js'
+      - 'starship/index.html'
       - 'scripts/validate-v110-cards.cjs'
       - 'scripts/test-v110-engine.cjs'
       - 'scripts/test-v110-migration.cjs'
+      - 'scripts/test-v120-ux.cjs'
       - '.github/workflows/v110-card-validation.yml'
 
 jobs:
@@ -34,3 +37,5 @@ jobs:
         run: node scripts/test-v110-engine.cjs
       - name: Validate save migration
         run: node scripts/test-v110-migration.cjs
+      - name: Validate v1.2 card UX
+        run: node scripts/test-v120-ux.cjs
