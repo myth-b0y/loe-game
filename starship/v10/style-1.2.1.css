@@ -1,0 +1,17 @@
+/* LoE: Starship Survivor v1.2.1 UX */
+.v121AutoDraft{min-width:92px}
+.v121AutoDraft:disabled{opacity:.42;pointer-events:none}
+.v110DraftCard.v121AiCursor{z-index:13!important;transform:translateY(-7px) scale(1.025)!important;filter:brightness(1.12);outline:1px solid rgba(177,226,244,.55);box-shadow:0 10px 24px rgba(0,0,0,.38),0 0 20px color-mix(in srgb,var(--rank) 30%,transparent)!important;transition:.12s ease!important}
+.v110DraftCard.v121AiFinal{z-index:14!important;transform:translateY(-11px) scale(1.045)!important;filter:brightness(1.22);outline:1px solid rgba(235,250,255,.88);box-shadow:0 14px 32px rgba(0,0,0,.48),0 0 30px color-mix(in srgb,var(--rank) 48%,transparent)!important;transition:.12s ease!important}
+.v110DraftCard.v121AiCursor:after,.v110DraftCard.v121AiFinal:after{content:"AUTO";position:absolute;right:8px;bottom:7px;font:800 8px/1 system-ui;letter-spacing:.13em;color:#eaf9ff;opacity:.72;pointer-events:none}
+.v110DraftCard.v121AiFinal:after{content:"SELECT";opacity:.9}
+
+.v121BuildForegroundHost{position:relative}
+.v121FocusLayer[hidden]{display:none!important}
+.v121FocusLayer{position:absolute;inset:0;z-index:1200;display:grid;place-items:center;isolation:isolate}
+.v121FocusBackdrop{position:absolute;inset:0;z-index:0;border:0;background:rgba(1,5,9,.50);backdrop-filter:blur(3px);padding:0}
+.v121FocusSlot{position:relative;z-index:1;display:grid;place-items:center;pointer-events:none;width:100%;height:100%}
+.card.v121FocusCard{pointer-events:auto!important;position:relative!important;inset:auto!important;bottom:auto!important;width:min(210px,58vw)!important;height:auto!important;min-height:285px!important;transform:none!important;opacity:1!important;filter:none!important;z-index:2!important;margin:0!important;padding:16px!important;text-align:left!important;display:grid!important;align-content:start!important;gap:8px;box-shadow:0 26px 70px rgba(0,0,0,.72),0 0 34px color-mix(in srgb,var(--rank) 36%,transparent)!important}
+.card.v121FocusCard:hover{transform:none!important}
+.v121FocusDesc{margin:12px 0 0;font-size:11px;line-height:1.45;opacity:.78}
+@media(max-width:640px){.card.v121FocusCard{width:min(190px,62vw)!important;min-height:250px!important;padding:14px!important}.v121FocusDesc{font-size:10px}.v121FocusBackdrop{background:rgba(1,5,9,.58)}}
