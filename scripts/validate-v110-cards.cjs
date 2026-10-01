@@ -28,9 +28,15 @@ for(const c of V.CORES)assert.strictEqual(c.values.length,7,`${c.id} has seven r
 for(const e of V.EVOLUTIONS){assert.strictEqual(e.sources.length,2,`${e.id} has two sources`);const a=V.PATH_BY_ID[e.sources[0]],b=V.PATH_BY_ID[e.sources[1]];assert(a&&b,`${e.id} sources exist`);assert.strictEqual(a.symbol,e.symbol,`${e.id} symbol A`);assert.strictEqual(b.symbol,e.symbol,`${e.id} symbol B`)}
 assert.deepStrictEqual(window.SR.WEAPONS.map(w=>w.id).sort(),['weapon.autocannon','weapon.ion','weapon.missile','weapon.plasma','weapon.railgun'].sort(),'five surviving weapons');
 const loader=fs.readFileSync('starship/loader-v9.js','utf8');
-for(const f of ['data.js','migration.js','card-engine.js','card-systems.js','card-ui.js','style.css'])assert(loader.includes(f),`loader references ${f}`);
+for(const f of ['data.js','migration.js','card-engine.js','capabilities.js','card-systems.js','card-ui.js','style.css'])assert(loader.includes(f),`loader references ${f}`);
 assert(loader.indexOf("v10+'data.js'")<loader.indexOf("v10+'migration.js'"),'data before migration');
 assert(loader.indexOf("v10+'migration.js'")<loader.indexOf("v10+'card-engine.js'"),'migration before engine');
-assert(loader.indexOf("v10+'card-engine.js'")<loader.indexOf("v10+'card-systems.js'"),'engine before systems');
+assert(loader.indexOf("v10+'card-engine.js'")<loader.indexOf("v10+'capabilities.js'"),'engine before capability gate');
+assert(loader.indexOf("v10+'capabilities.js'")<loader.indexOf("v10+'card-systems.js'"),'capability gate before systems');
 assert(loader.indexOf("v10+'card-systems.js'")<loader.indexOf("v10+'card-ui.js'"),'systems before UI');
+const caps=fs.readFileSync('starship/v10/capabilities.js','utf8');
+assert(caps.includes('weaponCap=finiteOr'),'weapon capacity uses explicit finite fallback');
+assert(caps.includes('activeWeapons=ids.slice(0,weaponCap)'),'zero weapon capacity yields no active weapons');
+assert(caps.includes('activeSupports=sIds.slice(0,supportCap)'),'zero support capacity yields no active supports');
+assert(caps.includes('droneCap>0&&hasDroneOperator'),'drone paths require capacity and operator');
 console.log('v1.1 card catalog validated:',V.PATHS.length,'paths,',V.EVOLUTIONS.length,'evolutions,',V.CORES.length,'core cards');
