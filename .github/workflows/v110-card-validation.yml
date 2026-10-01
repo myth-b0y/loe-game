@@ -1,0 +1,29 @@
+name: v1.1 Card Validation
+
+on:
+  push:
+    branches:
+      - feature/v110-card-system
+  pull_request:
+    paths:
+      - 'starship/v10/**'
+      - 'starship/loader-v9.js'
+      - '.github/workflows/v110-card-validation.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check v10 JavaScript
+        run: |
+          for f in starship/v10/*.js; do
+            echo "Checking $f"
+            node --check "$f"
+          done
+          node --check starship/loader-v9.js
+      - name: Validate card catalog
+        run: node scripts/validate-v110-cards.cjs
