@@ -1,5 +1,5 @@
 (async()=>{
-  const V='10.1.0';
+  const V='10.1.1';
   const base='./v5/',v6='./v6/',v7='./v7/',v8='./v8/',v9='./v9/',v10='./v10/';
   const text=async url=>{const r=await fetch(url+'?v='+V,{cache:'no-store'});if(!r.ok)throw new Error('LOAD '+url);return r.text()};
   const join=async(root,name,count)=>{let out='';for(let i=0;i<count;i++)out+=await text(root+name+'.'+i+'.txt');return out};
@@ -65,6 +65,7 @@
     (0,eval)(await text(v10+'data.js'));
     (0,eval)(await text(v10+'migration.js'));
     (0,eval)(await text(v10+'card-engine.js'));
+    (0,eval)(await text(v10+'capabilities.js'));
     (0,eval)(await text(v10+'card-systems.js'));
     (0,eval)(await text(v10+'card-ui.js'));
     window.SR.VERSION='1.1.0';
