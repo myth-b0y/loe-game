@@ -9,6 +9,7 @@ on:
       - 'starship/v10/**'
       - 'starship/loader-v9.js'
       - 'scripts/validate-v110-cards.cjs'
+      - 'scripts/test-v110-engine.cjs'
       - 'scripts/test-v110-migration.cjs'
       - '.github/workflows/v110-card-validation.yml'
 
@@ -29,5 +30,7 @@ jobs:
           node --check starship/loader-v9.js
       - name: Validate card catalog and draft gating
         run: node scripts/validate-v110-cards.cjs
+      - name: Validate draft and Evolution engine
+        run: node scripts/test-v110-engine.cjs
       - name: Validate save migration
         run: node scripts/test-v110-migration.cjs
