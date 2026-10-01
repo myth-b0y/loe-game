@@ -23,7 +23,7 @@ V.v121PairState=(g,pathId)=>{
 
 V.scoreChoice=(g,q)=>{
  if(!q)return-1e9;
- let score=0;
+ let score=0;const h=hpRatio(g),sh=shieldRatio(g);
  if(q.kind==='path'){
    const p=V.PATH_BY_ID?.[q.id];if(!p)return-1e9;
    const state=V.v121PairState(g,p.id),current=state.rank,next=Math.max(current+1,Number(q.rank)||1),mate=state.partnerRank;
@@ -41,14 +41,17 @@ V.scoreChoice=(g,q)=>{
        score+=Math.min(20,Math.min(next,mate)*2.5); // Reward a pair advancing together.
      }
    }
+   // Emergency defensive Paths can interrupt the long-term plan, but only when
+   // the current ship state actually needs them.
+   if(sh<.28&&p.category==='shield')score+=sh<.12?95:42;
+   if(h<.26&&['ship','defDrone','defSupport'].includes(p.category))score+=h<.14?70:30;
    // If the partner is not owned there is deliberately no symbol bonus. This fixes
    // the old bug where a Path could effectively count its own symbol as a partner.
  }else if(q.kind==='core'){
    score=12+(Number(q.rank)||1)*1.25;
-   const h=hpRatio(g),sh=shieldRatio(g);
-   if(q.id==='hull')score+=h<.28?72:h<.45?34:h<.65?12:0;
-   if(q.id==='repairEfficiency')score+=h<.28?56:h<.48?27:h<.7?8:0;
-   if(q.id==='shield')score+=sh<.22?60:sh<.42?30:sh<.65?10:0;
+   if(q.id==='hull')score+=h<.15?260:h<.28?110:h<.45?38:h<.65?12:0;
+   if(q.id==='repairEfficiency')score+=h<.15?205:h<.28?88:h<.48?30:h<.7?8:0;
+   if(q.id==='shield')score+=sh<.12?185:sh<.22?85:sh<.42?34:sh<.65?10:0;
    if(q.id==='damage'||q.id==='fireRate')score+=8;
    if(q.id==='crit')score+=5;
    if(q.id==='xp'&&(g.wave||0)<20)score+=6;
@@ -77,7 +80,6 @@ const aiSound=(g,final,index=0)=>{
 
 const draftButtons=()=>[...document.querySelectorAll('#cards .v110DraftCards .v110DraftCard')];
 const clearAiCursor=()=>draftButtons().forEach(b=>b.classList.remove('v120AiPick','v121AiCursor','v121AiFinal'));
-const pickIndex=(offer,q)=>offer.picks.findIndex(x=>choiceKey(x)===choiceKey(q));
 
 V.runAiDraftDecision=(g,{fast=false}={})=>{
  const offer=g?._v110Offer;if(!offer?.picks?.length||g._v121AutoPickPending)return false;
@@ -137,7 +139,7 @@ GP.showRunDeck=function(...args){
  back.addEventListener('click',dismiss);
  for(const card of fan.querySelectorAll('.v110FanCard'))card.addEventListener('click',()=>requestAnimationFrame(()=>{
    if(!card.classList.contains('focus'))return;
-   const clone=card.cloneNode(true);clone.classList.remove('focus');clone.classList.add('v121FocusCard');clone.removeAttribute('style');
+   const clone=card.cloneNode(true);clone.classList.remove('focus');clone.classList.add('v121FocusCard');clone.style.removeProperty('--x');clone.style.removeProperty('--rot');clone.style.removeProperty('--z');clone.style.removeProperty('z-index');
    const desc=inspect?.querySelector('p')?.textContent||'';if(desc){const p=document.createElement('p');p.className='v121FocusDesc';p.textContent=desc;clone.append(p)}
    slot.innerHTML='';slot.append(clone);layer.hidden=false;clone.addEventListener('click',dismiss);
  }));
