@@ -1,6 +1,6 @@
 (async()=>{
-  const V='9.9.11';
-  const base='./v5/',v6='./v6/',v7='./v7/',v8='./v8/',v9='./v9/';
+  const V='10.1.0';
+  const base='./v5/',v6='./v6/',v7='./v7/',v8='./v8/',v9='./v9/',v10='./v10/';
   const text=async url=>{const r=await fetch(url+'?v='+V,{cache:'no-store'});if(!r.ok)throw new Error('LOAD '+url);return r.text()};
   const join=async(root,name,count)=>{let out='';for(let i=0;i<count;i++)out+=await text(root+name+'.'+i+'.txt');return out};
   const ungzip=async(root,name,count)=>{let b64='';for(let i=0;i<count;i++)b64+=await text(root+name+'.gz.b64.'+i);const raw=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));const stream=new Blob([raw]).stream().pipeThrough(new DecompressionStream('gzip'));return new Response(stream).text()};
@@ -61,14 +61,20 @@
     (0,eval)(await text(v9+'hotfix.18.js'));
     (0,eval)(await text(v9+'hotfix.19.js'));
     (0,eval)(await text(v9+'hotfix.20.js'));
-    window.SR.VERSION='0.9.9';
-    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);window.SR.app.s.version='0.9.9';try{window.SR.save(window.SR.app.s)}catch{}}
+    const s110=document.createElement('style');s110.textContent=await text(v10+'style.css');document.head.append(s110);
+    (0,eval)(await text(v10+'data.js'));
+    (0,eval)(await text(v10+'migration.js'));
+    (0,eval)(await text(v10+'card-engine.js'));
+    (0,eval)(await text(v10+'card-systems.js'));
+    (0,eval)(await text(v10+'card-ui.js'));
+    window.SR.VERSION='1.1.0';
+    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);window.SR.app.s.version='1.1.0';try{window.SR.save(window.SR.app.s)}catch{}}
     if(document.readyState!=='loading'&&window.SR?.App&&!window.SR.app)window.SR.app=new window.SR.App();
     const finishBoot=()=>window.StarshipBoot?.ready();
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',finishBoot,{once:true});else finishBoot();
   }catch(e){
     console.error(e);
     if(window.StarshipBoot?.fail)window.StarshipBoot.fail(e);
-    else document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v0.9.9 failed to load. Refresh once. If it persists, report LOAD ERROR V9.9.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>';
+    else document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v1.1.0 failed to load. Refresh once. If it persists, report LOAD ERROR V1.1.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>';
   }
 })();
