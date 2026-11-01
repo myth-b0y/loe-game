@@ -36,6 +36,7 @@ jobs:
             node --check "$f"
           done
           node --check starship/loader-v9.js
+          node --check scripts/test-v130-run-depth.cjs
       - name: Validate card catalog and draft gating
         run: node scripts/validate-v110-cards.cjs
       - name: Validate draft and Evolution engine
