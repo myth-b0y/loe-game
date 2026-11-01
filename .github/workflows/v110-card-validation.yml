@@ -1,4 +1,4 @@
-name: v1.2.1 Card Validation
+name: v1.3 Card Validation
 
 on:
   push:
@@ -6,9 +6,11 @@ on:
       - feature/v110-card-system
       - feature/v120-card-ux
       - feature/v121-ai-shields
+      - feature/v130-run-depth
   pull_request:
     paths:
       - 'starship/v10/**'
+      - 'starship/v11/**'
       - 'starship/loader-v9.js'
       - 'starship/index.html'
       - 'scripts/validate-v110-cards.cjs'
@@ -16,6 +18,7 @@ on:
       - 'scripts/test-v110-migration.cjs'
       - 'scripts/test-v120-ux.cjs'
       - 'scripts/test-v121-ai-shields.cjs'
+      - 'scripts/test-v130-run-depth.cjs'
       - '.github/workflows/v110-card-validation.yml'
 
 jobs:
@@ -26,9 +29,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Syntax check v10 JavaScript
+      - name: Syntax check runtime JavaScript
         run: |
-          for f in starship/v10/*.js; do
+          for f in starship/v10/*.js starship/v11/*.js; do
             echo "Checking $f"
             node --check "$f"
           done
@@ -43,3 +46,5 @@ jobs:
         run: node scripts/test-v120-ux.cjs
       - name: Validate v1.2.1 AI and layered shields
         run: node scripts/test-v121-ai-shields.cjs
+      - name: Validate v1.3 run depth and fleet targeting
+        run: node scripts/test-v130-run-depth.cjs
