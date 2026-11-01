@@ -1,0 +1,10 @@
+/* v1.3.1 checkpoint selector + fleet feedback */
+.v131LaunchCard{min-width:min(92vw,420px)}
+.v131CheckpointGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.v131CheckpointGrid .btn{min-height:48px;position:relative}
+.v131CheckpointGrid .v131Selected{box-shadow:0 0 0 1px rgba(118,226,255,.72),0 0 22px rgba(95,213,255,.18)}
+.v131CheckpointGrid .v131Selected:after{content:'✓';position:absolute;right:9px;top:8px;font-size:10px;color:#9feaff}
+.v131LaunchActions{display:grid;grid-template-columns:1fr 1.35fr;gap:8px;margin-top:10px}
+.v131LaunchConfirm{min-height:50px}
+.v131FleetMuzzle{filter:drop-shadow(0 0 4px rgba(210,245,255,.5))}
+@media(max-width:480px){.v131CheckpointGrid{grid-template-columns:repeat(2,1fr)}.v131LaunchActions{grid-template-columns:1fr 1.2fr}}
