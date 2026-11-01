@@ -1,6 +1,6 @@
 (async()=>{
-  const V='13.0.0';
-  const base='./v5/',v6='./v6/',v7='./v7/',v8='./v8/',v9='./v9/',v10='./v10/',v11='./v11/';
+  const V='13.1.0';
+  const base='./v5/',v6='./v6/',v7='./v7/',v8='./v8/',v9='./v9/',v10='./v10/',v11='./v11/',v12='./v12/';
   const text=async url=>{const r=await fetch(url+'?v='+V,{cache:'no-store'});if(!r.ok)throw new Error('LOAD '+url);return r.text()};
   const join=async(root,name,count)=>{let out='';for(let i=0;i<count;i++)out+=await text(root+name+'.'+i+'.txt');return out};
   const ungzip=async(root,name,count)=>{let b64='';for(let i=0;i<count;i++)b64+=await text(root+name+'.gz.b64.'+i);const raw=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));const stream=new Blob([raw]).stream().pipeThrough(new DecompressionStream('gzip'));return new Response(stream).text()};
@@ -79,8 +79,13 @@
     (0,eval)(await text(v11+'modules.js'));
     (0,eval)(await text(v11+'targeting.js'));
     (0,eval)(await text(v11+'ui.js'));
-    window.SR.VERSION='1.3.0';
-    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);window.SR.app.s.version='1.3.0';try{window.SR.save(window.SR.app.s)}catch{}}
+    const s131=document.createElement('style');s131.textContent=await text(v12+'style.css');document.head.append(s131);
+    (0,eval)(await text(v12+'data.js'));
+    (0,eval)(await text(v12+'checkpoints.js'));
+    (0,eval)(await text(v12+'fleet.js'));
+    (0,eval)(await text(v12+'ui.js'));
+    window.SR.VERSION='1.3.1';
+    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);window.SR.app.s.version='1.3.1';try{window.SR.save(window.SR.app.s)}catch{}}
     if(document.readyState!=='loading'&&window.SR?.App&&!window.SR.app)window.SR.app=new window.SR.App();
     window.SR.V10?.syncVersionLabel?.();
     const finishBoot=()=>window.StarshipBoot?.ready();
@@ -88,6 +93,6 @@
   }catch(e){
     console.error(e);
     if(window.StarshipBoot?.fail)window.StarshipBoot.fail(e);
-    else document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v1.3.0 failed to load. Refresh once. If it persists, report LOAD ERROR V1.3.0.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>';
+    else document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v1.3.1 failed to load. Refresh once. If it persists, report LOAD ERROR V1.3.1.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>';
   }
 })();
