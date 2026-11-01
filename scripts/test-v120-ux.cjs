@@ -22,8 +22,8 @@ assert(css.includes('.v120BuildSymbol.paired'),'Paired-symbol glow styling exist
 assert(loader.includes("v10+'style-1.2.css'"),'Loader still includes v1.2 CSS');
 assert(loader.includes("v10+'ux-1.2.js'"),'Loader still includes v1.2 UX module');
 assert(loader.indexOf("v10+'card-ui.js'")<loader.indexOf("v10+'ux-1.2.js'"),'v1.2 UX loads after base card UI');
-assert(/const V='(?:12\.[01]|13\.0)\.0'/.test(loader),'Later releases retain the v1.2 UX layer');
-assert(/window\.SR\.VERSION='(?:1\.2\.[01]|1\.3\.0)'/.test(loader),'Later runtime still loads the v1.2 layer safely');
-assert(/version='(?:1\.2\.[01]|1\.3\.0)'/.test(loader),'Later release keeps save display versioning compatible');
-assert(/loader-v9\.js\?v=(?:12\.[01]|13\.0)\.0/.test(index),'HTML cache key advances without removing v1.2 UX');
+assert(/const V='(?:12\.[01]|13\.[01])\.0'/.test(loader),'Later releases retain the v1.2 UX layer');
+assert(/window\.SR\.VERSION='(?:1\.2\.[01]|1\.3\.[01])'/.test(loader),'Later runtime still loads the v1.2 layer safely');
+assert(/version='(?:1\.2\.[01]|1\.3\.[01])'/.test(loader),'Later release keeps save display versioning compatible');
+assert(/loader-v9\.js\?v=(?:12\.[01]|13\.[01])\.0/.test(index),'HTML cache key advances without removing v1.2 UX');
 console.log('v1.2 card UX regression validation passed');
