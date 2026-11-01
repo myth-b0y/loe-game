@@ -17,6 +17,16 @@ if(supportTarget121)GP.v984SupportTarget=function(u,bossMode,field){
  return supportTarget121.call(this,u,bossMode,field);
 };
 
+// Offensive drones use the same flagship-threat ordering while preserving their
+// existing range checks and orbit behavior. The enemy list is restored immediately
+// after the canonical ally update so no other combat system inherits the sort.
+const allies121=GP.allies;
+if(allies121)GP.allies=function(dt){
+ const original=this.en;if(!Array.isArray(original)||original.length<2)return allies121.call(this,dt);
+ const sorted=original.slice().sort((a,b)=>X.friendlyThreatScore(this,b,null)-X.friendlyThreatScore(this,a,null));
+ this.en=sorted;try{return allies121.call(this,dt)}finally{this.en=original}
+};
+
 X.enemySupportChance=e=>{
  if(e?.boss)return 0;const r=role(e);if(r<=1)return .72;if(r===2)return .38;if(r===3)return .24;return .10;
 };
