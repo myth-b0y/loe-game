@@ -1,13 +1,13 @@
 (async()=>{
-  const V='12.1.0';
-  const base='./v5/',v6='./v6/',v7='./v7/',v8='./v8/',v9='./v9/',v10='./v10/';
+  const V='13.0.0';
+  const base='./v5/',v6='./v6/',v7='./v7/',v8='./v8/',v9='./v9/',v10='./v10/',v11='./v11/';
   const text=async url=>{const r=await fetch(url+'?v='+V,{cache:'no-store'});if(!r.ok)throw new Error('LOAD '+url);return r.text()};
   const join=async(root,name,count)=>{let out='';for(let i=0;i<count;i++)out+=await text(root+name+'.'+i+'.txt');return out};
   const ungzip=async(root,name,count)=>{let b64='';for(let i=0;i<count;i++)b64+=await text(root+name+'.gz.b64.'+i);const raw=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));const stream=new Blob([raw]).stream().pipeThrough(new DecompressionStream('gzip'));return new Response(stream).text()};
   try{
     const baseStyle=document.createElement('style');baseStyle.textContent=await ungzip(base,'style',1);document.head.append(baseStyle);
     (0,eval)(await join(base,'data',4));
-    window.SR.VERSION='1.2.1';
+    window.SR.VERSION='1.3.0';
     (0,eval)(await ungzip(base,'combat',3));
     (0,eval)(await ungzip(base,'ui',2));
     window.StarshipBoot?.stage(1);
@@ -73,8 +73,14 @@
     const s121=document.createElement('style');s121.textContent=await text(v10+'style-1.2.1.css');document.head.append(s121);
     (0,eval)(await text(v10+'systems-1.2.1.js'));
     (0,eval)(await text(v10+'ux-1.2.1.js'));
-    window.SR.VERSION='1.2.1';
-    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);window.SR.app.s.version='1.2.1';try{window.SR.save(window.SR.app.s)}catch{}}
+    const s130=document.createElement('style');s130.textContent=await text(v11+'style.css');document.head.append(s130);
+    (0,eval)(await text(v11+'data.js'));
+    (0,eval)(await text(v11+'rewards.js'));
+    (0,eval)(await text(v11+'modules.js'));
+    (0,eval)(await text(v11+'targeting.js'));
+    (0,eval)(await text(v11+'ui.js'));
+    window.SR.VERSION='1.3.0';
+    if(window.SR.app?.s){window.SR.app.s=window.SR.migrate(window.SR.app.s);window.SR.app.s.version='1.3.0';try{window.SR.save(window.SR.app.s)}catch{}}
     if(document.readyState!=='loading'&&window.SR?.App&&!window.SR.app)window.SR.app=new window.SR.App();
     window.SR.V10?.syncVersionLabel?.();
     const finishBoot=()=>window.StarshipBoot?.ready();
@@ -82,6 +88,6 @@
   }catch(e){
     console.error(e);
     if(window.StarshipBoot?.fail)window.StarshipBoot.fail(e);
-    else document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v1.2.1 failed to load. Refresh once. If it persists, report LOAD ERROR V1.2.1.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>';
+    else document.body.innerHTML='<main style="font-family:system-ui;background:#02050a;color:#eaf5fb;min-height:100vh;padding:40px 20px"><h2>LoE: Starship Survivor</h2><p>v1.3.0 failed to load. Refresh once. If it persists, report LOAD ERROR V1.3.0.</p><pre style="white-space:pre-wrap;color:#ff9aaa">'+String(e.message||e)+'</pre></main>';
   }
 })();
