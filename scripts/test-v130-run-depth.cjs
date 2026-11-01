@@ -86,7 +86,7 @@ assert.strictEqual(cats[0].id,'ricochet','committed Path identity remains the on
 assert(!X.canBanish(game,{kind:'path',id:'ricochet'}),'committed Path cannot be banished and brick the category');
 assert(X.canBanish(game,{kind:'core',id:'damage'}),'Core can be banished');
 
-assert(V.applyChoice(game,{kind*'unique',id:'fortuneCircuit'}),'Unique can be acquired');
+assert(V.applyChoice(game,{kind:'unique',id:'fortuneCircuit'}),'Unique can be acquired');
 assert(!V.applyChoice(game,{kind:'unique',id:'fortuneCircuit'}),'Unique cannot be acquired twice');
 assert.strictEqual(X.luck(game),24,'Unique Luck contributes to run Luck');
 X.ensure(game).modules.push('luckyCoil');
