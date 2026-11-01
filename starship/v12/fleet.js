@@ -106,7 +106,7 @@ V.onFriendlyImpact=(g,z)=>{
    if(p._v131Cluster&&target){const n=clamp(p._v131Cluster,1,4);for(let i=0;i<n;i++)fragment(g,{...p,x:z.x,y:z.y,damage:z.damage},target,(i-(n-1)/2)*.18,.24)}
  }
  if(family==='ion'&&target){
-   if(p._v131Blackout){const dur=evo(g,'deadZone')?.7:stat(g,'blackout','duration')*k;target._v110Blackout=Math.max(target._v110Blackout||0,dur)}
+   if(p._v131Blackout){const dur=evo(g,'deadZone') ? .7 : stat(g,'blackout','duration')*k;target._v110Blackout=Math.max(target._v110Blackout||0,dur)}
    if(p._v131Static){const need=evo(g,'thunderhead')?6:Math.max(5,Math.round((stat(g,'staticCharge','stacks')||8)/Math.max(.35,k)));target._v131FleetStatic=(target._v131FleetStatic||0)+1;if(target._v131FleetStatic>=need){target._v131FleetStatic=0;g.damageTarget?.(target,Math.max(3,z.damage*(evo(g,'thunderhead')?1.15:.85)));g.v984Fx?.('intercept',target.x,target.y,{life:.4,color:'#9aa9ff'})}}
  }
  if(family==='missile'&&p._v131MissileCluster&&target){const n=clamp(p._v131MissileCluster,1,4);for(let i=0;i<n;i++)fragment(g,{...p,x:z.x,y:z.y,damage:z.damage},target,(i-(n-1)/2)*.16,.25)}
