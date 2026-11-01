@@ -34,12 +34,12 @@ assert(ui.includes('v130Unique'),'Unique cards have a dedicated visual class');
 assert(ui.includes('v130BuildExtras'),'Build screen shows Luck, Uniques and Modules');
 assert(css.includes('.v130Unique'),'purple Unique styling exists');
 assert(css.includes('.v130Wide'),'4/5-card drafts have compact overflow layout');
-assert(loader.includes("const V='13.0.0'"),'loader cache key is v1.3');
+assert(/const V='13\.[01]\.0'/.test(loader),'loader cache key remains in the v1.3 line');
 assert(loader.includes("v11='./v11/'"),'loader declares removable v11 layer');
 for(const f of ['data.js','rewards.js','modules.js','targeting.js','ui.js'])assert(loader.includes("v11+'"+f+"'"),`loader includes ${f}`);
-assert(loader.includes("window.SR.VERSION='1.3.0'"),'final runtime is v1.3.0');
-assert(loader.includes("version='1.3.0'"),'save display version is v1.3.0 without schema bump');
-assert(index.includes('loader-v9.js?v=13.0.0'),'HTML cache key is v1.3');
+assert(/window\.SR\.VERSION='1\.3\.[01]'/.test(loader),'later v1.3 runtime retains the v1.3 systems');
+assert(/version='1\.3\.[01]'/.test(loader),'save display version remains in the v1.3 line without schema bump');
+assert(/loader-v9\.js\?v=13\.[01]\.0/.test(index),'HTML cache key remains in the v1.3 line');
 
 // Execute the reward engine against a minimal canonical v10 runtime.
 global.document={querySelector:()=>null};
