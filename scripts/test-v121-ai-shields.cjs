@@ -38,5 +38,5 @@ assert(loader.includes("v10+'style-1.2.1.css'"),'v1.2.1 style layer remains load
 assert(loader.includes("v10+'systems-1.2.1.js'"),'Layered shield patch loads');
 assert(loader.includes("v10+'ux-1.2.1.js'"),'AI/UX patch loads');
 assert(loader.indexOf("v10+'ux-1.2.1.js'")<loader.indexOf("v11+'data.js'"),'v1.2.1 UX loads before the additive v1.3 layer');
-assert(/loader-v9\\.js\\?v=(?:12\\.1\\.0|13\\.0\\.0)/.test(index),'HTML cache key can advance beyond v1.2.1');
+assert(/loader-v9\.js\?v=(?:12\.1\.0|13\.0\.0)/.test(index),'HTML cache key can advance beyond v1.2.1');
 console.log('v1.2.1 AI + layered shield validation passed');
